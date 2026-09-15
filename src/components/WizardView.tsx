@@ -581,6 +581,7 @@ export default function WizardView() {
           <span className="text-xs text-violet-900 dark:text-violet-200">
             <span className="font-semibold">Est. full pipeline time:</span>{' '}
             <span className="font-mono font-bold">~{Math.round(2 + 21 + 27 + 5 + 20 + (Math.max(3, Math.min(12, Math.round(lengthMin / 3))) * 9) + 5 + 3)}s</span>
+            <span className="font-mono text-violet-500 dark:text-violet-400"> ±30%</span>
             {' '}via {provider === 'zai' ? 'Z.AI GLM' : provider.toUpperCase()}
           </span>
           <span className="ml-auto text-[10px] text-violet-500 dark:text-violet-400 hidden sm:inline">

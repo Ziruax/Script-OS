@@ -288,3 +288,61 @@ Unresolved issues / risks / next-phase priorities:
 - Could add a keyboard shortcut for the Research tab filter (e.g. pressing "1"/"2"/"3"/"4" cycles the filter).
 - Could persist the source filter preference + collapsed state to localStorage so it survives reloads.
 - The estimated generation time banner could show a "±" range since ZAI call times vary.
+
+---
+Task ID: 7 (webDevReview cron round 6)
+Agent: main (Z.ai Code) — recurring 15-min webDevReview
+Task: Assess project status, QA via agent-browser, fix bugs, improve styling, add features. Mandatory: improve styling + add features.
+
+Work Log:
+- Read previous worklog (Tasks 1-6). Priorities from Task 6: migrate Wikipedia/Facts/Stats/Human Stories cards to CollapsibleCard, persist Research filter + collapsed state, keyboard shortcut 1/2/3/4, "±" range for est-time, Recommended Templates on onboarding modal.
+
+QA:
+- Dev server healthy (Next 16.3.5, ready in 301ms). agent-browser: zero page errors, clean console.
+- Built a real research pack via /api/research/build (ZAI) → 200 in 23.4s, returned 4 web + 4 wiki + 4 reddit live results. Injected into the browser store to QA the Research view features.
+
+NEW FEATURES:
+1. Migrated ALL Research dossier cards to the CollapsibleCard wrapper (the headline polish):
+   - Card 1 (Facts), Card 2 (Stats + Competitor Gaps), Card 3 (Human Stories), Card 4 (Wikipedia) now all use the reusable CollapsibleCard component — previously only Cards 5 (Web) and 6 (Reddit) did. All 6 cards now have a consistent header with icon + title + badge + rotating chevron.
+   - Made the Wikipedia card filter-aware (hidden when sourceFilter is 'reddit' or 'web'), matching the existing Web/Reddit card behavior. Now filtering by source type cleanly hides/shows the relevant cards.
+   - Verified live: all 6 card titles render, 6 chevron buttons present, collapsing the "Facts" card hides its content.
+2. Persisted Research filter + collapsed state to localStorage:
+   - `sourceFilter` initializes from `localStorage['scriptos_research_filter']` (validated to one of all/wikipedia/reddit/web).
+   - `collapsedCards` initializes from `localStorage['scriptos_research_collapsed']` (JSON).
+   - `toggleCard()` writes the updated state to localStorage. `setSourceFilter` persists via a useEffect.
+   - "Expand all" button now also clears the persisted collapsed state.
+   - Verified live: collapsed "Facts" card → localStorage `scriptos_research_collapsed` = `{"facts":true}`; pressed "3" → filter persisted as `"reddit"`.
+3. Keyboard shortcut 1/2/3/4 for the Research filter:
+   - Added a global keydown listener that cycles the source filter: 1=All, 2=Wikipedia, 3=Reddit, 4=Web.
+   - Guards: ignores when a modifier key (Cmd/Ctrl/Alt) is held, and when the user is typing in an input/textarea/contentEditable.
+   - Added a keyboard hint row (styled <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> "to filter") next to the Expand all button on the filter bar, visible on sm+ screens.
+   - Verified live: pressing "3" switched the filter to Reddit (Web card hidden, Reddit card visible, filter persisted).
+4. "±30%" range on the estimated generation time banner — the Wizard est-time now shows "~Ns ±30% via Z.AI GLM" since ZAI call times vary (story-dna took 21s in test, could be faster/slower). Verified live: "±30%" visible.
+5. Recommended Templates step on the onboarding HelpModal:
+   - Added a new "Quick Start Templates" step (5th step, after Dual Review Councils) to the onboarding flow. Shows 6 template cards (Productivity, True Crime, Tech Explainer, Personal Story, Business Case Study, Mystery) with gradient accent strips, emoji, name, length + content type. Clicking a template applies it (fills title/details/length/contentType/etc), closes the modal, marks onboarding complete, and navigates to the Wizard. Footer note mentions "+ 4 more templates in the Wizard".
+   - Verified live: navigated to step 5 → "Skip the blank page — start from a proven preset" + 6 template cards render; clicking "Mystery" closed the modal and set the Wizard title to "The Signal That Took 40 Years to Decode".
+
+STYLING POLISH:
+- All 6 Research cards now have a uniform collapsible header with rotating chevron (200ms transition) — visually consistent across Facts (blue BookOpen), Stats (emerald BarChart3), Human Stories (purple MessageSquare), Wikipedia (sky Globe), Web (emerald Globe), Reddit (orange Quote).
+- Keyboard hint row on the filter bar: 4 styled <kbd> elements + "to filter" label, sm+ only.
+- HelpModal template cards: gradient accent strip per template (amber/rose/blue/purple/emerald/indigo), emoji + name, length + content type footer, hover lift effect.
+
+VERIFICATION:
+- `bun run lint` → clean (0 errors).
+- Dev server: Next.js 16.3.5 Turbopack, ready in 301ms, no errors.
+- curl smoke tests: GET / 200, GET /settings 200, GET /api/health 200. POST /api/research/build 200 (23.4s, real web results: 4 web + 4 wiki + 4 reddit).
+- agent-browser QA: zero page errors. Onboarding: navigated to step 5 → templates step visible + 6 cards render → clicking "Mystery" closed modal + set Wizard title. Research view: all 6 cards collapsible (6 chevron buttons); collapsing "Facts" persisted to localStorage; pressing "3" switched filter to Reddit (Web hidden, Reddit visible) + persisted. Wizard: "±30%" visible on est-time banner.
+- Captured 2 screenshots: scriptos-v7-research-all-collapsible.png, scriptos-v7-onboarding-templates.png.
+
+Stage Summary:
+- Research view is now fully uniform: all 6 dossier cards use the CollapsibleCard wrapper with consistent headers, filter-awareness, and persisted collapse state. The keyboard shortcut (1/2/3/4) + kbd hint makes filtering fast. The onboarding flow now showcases Quick Start Templates so new users discover them immediately. The est-time banner honestly communicates variance with "±30%".
+- 5 features added (6→collapsible card migration + Wikipedia filter-awareness, persisted filter + collapsed state, keyboard shortcut 1/2/3/4, ±30% range, HelpModal templates step), styling significantly enhanced (uniform card headers, kbd hint row, gradient template cards in onboarding).
+- All changes lint-clean and verified end-to-end via agent-browser + curl + live API calls.
+
+Unresolved issues / risks / next-phase priorities:
+- The keyboard shortcut 1/2/3/4 fires globally on the Research tab even when no research data exists — harmless (filter just has no visible effect) but could be gated on pythonData presence.
+- The HelpModal template step shows only 6 of 10 templates (space constraint); the full 10 are in the Wizard. Could add a "See all templates" link that jumps to the Wizard.
+- Could add a progress indicator to the onboarding ("Step 4 of 5") — currently shows "Step X of N" in the subtitle but no visual progress bar.
+- Could add a "Skip onboarding" link that marks it complete without stepping through.
+- The Facts/Stats/Human Stories cards are NOT filter-aware (only the python_research-backed Wikipedia/Web/Reddit cards are). This is intentional (Facts/Stats/Stories are LLM-synthesized, not source-typed) but could be clarified with a small "Synthesized" badge.
+- Could add a "Copy all sources" button that copies every source URL to the clipboard for external use.

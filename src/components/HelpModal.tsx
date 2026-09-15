@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useScriptOSStore } from '@/lib/store';
+import { WIZARD_TEMPLATES } from '@/lib/templates';
 import {
   Sparkles,
   Cpu,
@@ -14,10 +15,11 @@ import {
   ChevronRight,
   ChevronLeft,
   Key,
+  Clock,
 } from 'lucide-react';
 
 export default function HelpModal() {
-  const { showHelpModal, setShowHelpModal, setHasSeenOnboarding, setActiveTab } = useScriptOSStore();
+  const { showHelpModal, setShowHelpModal, setHasSeenOnboarding, setActiveTab, updateInputs } = useScriptOSStore();
   const [activeStep, setActiveStep] = useState(0);
 
   if (!showHelpModal) return null;
@@ -125,6 +127,57 @@ export default function HelpModal() {
           <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 rounded text-xs text-emerald-800 dark:text-emerald-300 font-medium">
             Result: A 10/10 production script with production cues, high burstiness, and 3 A/B hook variations.
           </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Quick Start Templates',
+      subtitle: 'Skip the blank page — start from a proven preset',
+      icon: <Zap className="w-8 h-8 text-amber-500" />,
+      content: (
+        <div className="space-y-3 text-sm text-neutral-600 dark:text-neutral-300">
+          <p>
+            Don&apos;t want to configure every field by hand? Pick a Quick Start Template from the Wizard and the entire form fills in one click — then run the full pipeline.
+          </p>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            {WIZARD_TEMPLATES.slice(0, 6).map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => {
+                  updateInputs({
+                    title: t.title,
+                    details: t.details,
+                    lengthMin: t.lengthMin,
+                    contentType: t.contentType as any,
+                    narrativeMode: t.narrativeMode as any,
+                    audienceIntent: t.audienceIntent as any,
+                    emotionalEngine: t.emotionalEngine as any,
+                    audience: 'Auto-detect',
+                    goal: 'Auto-detect',
+                    tone: 'Auto-detect',
+                  });
+                  setShowHelpModal(false);
+                  setHasSeenOnboarding(true);
+                  setActiveTab('wizard');
+                }}
+                className={`relative p-2.5 rounded-lg border text-left transition-all overflow-hidden hover:shadow-sm border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-600`}
+              >
+                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${t.accent}`} aria-hidden />
+                <div className="flex items-center gap-1.5 pt-1">
+                  <span className="text-base leading-none">{t.emoji}</span>
+                  <span className="font-bold text-neutral-900 dark:text-neutral-100 text-xs">{t.name}</span>
+                </div>
+                <div className="flex items-center gap-1 mt-1 text-[9px] text-neutral-400">
+                  <Clock className="w-2.5 h-2.5" />
+                  <span>{t.lengthMin}m</span>
+                  <span>•</span>
+                  <span className="truncate">{t.contentType}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-neutral-400 text-center">+ 4 more templates in the Wizard (Finance, Health, Biography, News Analysis)</p>
         </div>
       ),
     },

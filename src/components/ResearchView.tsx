@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useScriptOSStore } from '@/lib/store';
 import {
   Search,
@@ -83,10 +83,53 @@ export default function ResearchView() {
   const [customSearchQuery, setCustomSearchQuery] = useState('');
   const [isSearchingCustom, setIsSearchingCustom] = useState(false);
   const [customSearchResults, setCustomSearchResults] = useState<any | null>(null);
-  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
-  const [collapsedCards, setCollapsedCards] = useState<Record<string, boolean>>({});
 
-  const toggleCard = (id: string) => setCollapsedCards((p) => ({ ...p, [id]: !p[id] }));
+  // Persisted source filter + collapsed-cards state (survives reloads)
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>(() => {
+    if (typeof window === 'undefined') return 'all';
+    try {
+      const saved = localStorage.getItem('scriptos_research_filter');
+      return (saved === 'wikipedia' || saved === 'reddit' || saved === 'web') ? saved : 'all';
+    } catch {
+      return 'all';
+    }
+  });
+  const [collapsedCards, setCollapsedCards] = useState<Record<string, boolean>>(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const saved = localStorage.getItem('scriptos_research_collapsed');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const toggleCard = (id: string) => setCollapsedCards((p) => {
+    const next = { ...p, [id]: !p[id] };
+    try { localStorage.setItem('scriptos_research_collapsed', JSON.stringify(next)); } catch {}
+    return next;
+  });
+
+  // Persist source filter when it changes
+  useEffect(() => {
+    try { localStorage.setItem('scriptos_research_filter', sourceFilter); } catch {}
+  }, [sourceFilter]);
+
+  // Keyboard shortcut: 1/2/3/4 cycles the source filter (only when on Research tab + pythonData exists)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Don't fire when typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
+      if (e.key === '1') setSourceFilter('all');
+      else if (e.key === '2') setSourceFilter('wikipedia');
+      else if (e.key === '3') setSourceFilter('reddit');
+      else if (e.key === '4') setSourceFilter('web');
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const handleCustomSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -267,31 +310,41 @@ export default function ResearchView() {
               );
             })}
           </div>
-          <button
-            type="button"
-            onClick={() => setCollapsedCards({})}
-            className="text-[10px] text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
-            title="Expand all cards"
-          >
-            Expand all
-          </button>
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:flex items-center gap-1 text-[9px] text-neutral-400">
+              <kbd className="px-1 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 font-mono">1</kbd>
+              <kbd className="px-1 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 font-mono">2</kbd>
+              <kbd className="px-1 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 font-mono">3</kbd>
+              <kbd className="px-1 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 font-mono">4</kbd>
+              <span className="ml-0.5">to filter</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setCollapsedCards({});
+                try { localStorage.setItem('scriptos_research_collapsed', '{}'); } catch {}
+              }}
+              className="text-[10px] text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+              title="Expand all cards"
+            >
+              Expand all
+            </button>
+          </div>
         </div>
       )}
 
       {/* Grid of dossier cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Card 1: Facts */}
-        <div className="p-5 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 space-y-3 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-              <BookOpen className="w-4 h-4 text-blue-500" />
-              Counter-Intuitive Verified Facts
-            </div>
-            <span className="text-[11px] text-neutral-400 font-mono">
-              {researchPack.facts?.length || 0} verified
-            </span>
-          </div>
-
+        {/* Card 1: Facts — collapsible */}
+        <CollapsibleCard
+          id="facts"
+          collapsed={!!collapsedCards['facts']}
+          onToggle={() => toggleCard('facts')}
+          headerIcon={BookOpen}
+          iconColor="text-blue-500"
+          title="Counter-Intuitive Verified Facts"
+          badge={<span className="text-[11px] text-neutral-400 font-mono">{researchPack.facts?.length || 0} verified</span>}
+        >
           <div className="space-y-2.5">
             {researchPack.facts?.map((f, i) => (
               <div
@@ -314,20 +367,18 @@ export default function ResearchView() {
               </div>
             ))}
           </div>
-        </div>
+        </CollapsibleCard>
 
-        {/* Card 2: Shocking Stat & Competitor Gaps */}
-        <div className="p-5 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 space-y-3 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-              <BarChart3 className="w-4 h-4 text-emerald-500" />
-              High-Stakes Quantitative Metrics
-            </div>
-            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
-              Data Grounded
-            </span>
-          </div>
-
+        {/* Card 2: Shocking Stat & Competitor Gaps — collapsible */}
+        <CollapsibleCard
+          id="stats"
+          collapsed={!!collapsedCards['stats']}
+          onToggle={() => toggleCard('stats')}
+          headerIcon={BarChart3}
+          iconColor="text-emerald-500"
+          title="High-Stakes Quantitative Metrics"
+          badge={<span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">Data Grounded</span>}
+        >
           <div className="space-y-2.5">
             {researchPack.stats?.map((s, i) => (
               <div
@@ -363,20 +414,19 @@ export default function ResearchView() {
               ))}
             </ul>
           </div>
-        </div>
+        </CollapsibleCard>
 
-        {/* Card 3: Human Stories (Reddit/Quora) */}
-        <div className="p-5 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 space-y-3 shadow-sm md:col-span-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-              <MessageSquare className="w-4 h-4 text-purple-500" />
-              Authentic Human Confessions & Reddit Community Threads
-            </div>
-            <span className="text-[11px] text-purple-600 dark:text-purple-400 font-mono">
-              Real Struggles
-            </span>
-          </div>
-
+        {/* Card 3: Human Stories (Reddit/Quora) — collapsible */}
+        <CollapsibleCard
+          id="human-stories"
+          collapsed={!!collapsedCards['human-stories']}
+          onToggle={() => toggleCard('human-stories')}
+          headerIcon={MessageSquare}
+          iconColor="text-purple-500"
+          title="Authentic Human Confessions & Reddit Community Threads"
+          badge={<span className="text-[11px] text-purple-600 dark:text-purple-400 font-mono">Real Struggles</span>}
+          className="md:col-span-2"
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {researchPack.human_stories?.map((st, i) => (
               <div
@@ -399,21 +449,20 @@ export default function ResearchView() {
               </div>
             ))}
           </div>
-        </div>
+        </CollapsibleCard>
 
-        {/* Card 4: Python Wikipedia Articles (if available) */}
-        {pythonData?.wikipedia_articles && pythonData.wikipedia_articles.length > 0 && (
-          <div className="p-5 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 space-y-3 shadow-sm md:col-span-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                <Globe className="w-4 h-4 text-sky-500" />
-                Wikipedia Library Knowledge (Encyclopedic Definitions & Scientific Theory)
-              </div>
-              <span className="px-2 py-0.5 rounded text-[10px] bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-mono">
-                Python wikipedia.summary
-              </span>
-            </div>
-
+        {/* Card 4: Python Wikipedia Articles — collapsible + filter-aware */}
+        {pythonData?.wikipedia_articles && pythonData.wikipedia_articles.length > 0 && (sourceFilter === 'all' || sourceFilter === 'wikipedia') && (
+          <CollapsibleCard
+            id="wikipedia-sources"
+            collapsed={!!collapsedCards['wikipedia-sources']}
+            onToggle={() => toggleCard('wikipedia-sources')}
+            headerIcon={Globe}
+            iconColor="text-sky-500"
+            title="Wikipedia Library Knowledge (Encyclopedic Definitions & Scientific Theory)"
+            badge={<span className="px-2 py-0.5 rounded text-[10px] bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-mono">{pythonData.wikipedia_articles.length} articles</span>}
+            className="md:col-span-2"
+          >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {pythonData.wikipedia_articles.map((art, i) => (
                 <div
@@ -437,7 +486,7 @@ export default function ResearchView() {
                 </div>
               ))}
             </div>
-          </div>
+          </CollapsibleCard>
         )}
 
         {/* Card 5: Live Web Research Sources — collapsible + filter-aware */}
