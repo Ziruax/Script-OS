@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callUnifiedLLM, parseJsonSafe } from '@/lib/gemini-server';
+import { STORY_ANGLES_SYSTEM_PROMPT } from '@/lib/story-mode';
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,8 +11,75 @@ export async function POST(req: NextRequest) {
       provider = 'google',
       model,
       api_key,
+      story_mode = false,
     } = await req.json();
 
+    // ── Story Mode branch: storytelling lenses (Wound, Want/Need, Sensory, etc.) ─
+    if (story_mode) {
+      const systemPrompt = STORY_ANGLES_SYSTEM_PROMPT;
+
+      const userPrompt = `STORY CONCEPT: "${title}"
+USER DETAILS (characters, setting, events, nuances):
+"""
+${details || 'No additional details provided.'}
+"""
+
+RESEARCH ANCHORS (real facts to weave in):
+${JSON.stringify((research_pack?.facts || []).slice(0, 3))}
+${JSON.stringify((research_pack?.human_stories || []).slice(0, 2))}
+
+Generate 3 distinct story angles using the 6 storytelling lenses now. Return only the JSON array.`;
+
+      let angles: any = null;
+      try {
+        const raw = await callUnifiedLLM({
+          provider,
+          model,
+          apiKey: api_key,
+          systemInstruction: systemPrompt,
+          prompt: userPrompt,
+          jsonMode: true,
+          temperature: 0.7,
+        });
+        angles = parseJsonSafe(raw, null);
+      } catch (llmErr) {
+        console.warn('[ScriptOS Story Mode] Angles LLM warning:', llmErr);
+      }
+
+      if (!Array.isArray(angles) || angles.length === 0) {
+        // Story Mode fallback angles
+        angles = [
+          {
+            angle_title: `The Wound Behind ${title}`,
+            lens_used: 'The Wound Lens',
+            protagonist_wound: `The unhealed hurt that drives every choice in "${title}".`,
+            want_vs_need: `They chase "${title}" (want) while avoiding the truth they need to face (need).`,
+            emotional_promise: 'Recognition — the viewer sees their own wound reflected.',
+            opening_image: 'A specific sensory image at the moment the wound first shows.',
+          },
+          {
+            angle_title: `The Want Was Never the Answer`,
+            lens_used: 'The Want vs Need Lens',
+            protagonist_wound: 'The belief that achieving the goal will heal the wound.',
+            want_vs_need: 'The conscious desire masks the unconscious need — the gap is the engine.',
+            emotional_promise: 'The ache of seeing your own avoidance named.',
+            opening_image: 'The protagonist mid-pursuit, unaware of what they are really running from.',
+          },
+          {
+            angle_title: `The Reversal`,
+            lens_used: 'The Reversal Lens',
+            protagonist_wound: 'A foundational assumption built on the wound.',
+            want_vs_need: 'They pursue the want until the midpoint inverts the assumption.',
+            emotional_promise: 'The vertigo of a worldview cracking open.',
+            opening_image: 'The moment right before the truth lands.',
+          },
+        ];
+      }
+
+      return NextResponse.json({ angles: angles.slice(0, 3), __story_mode: true });
+    }
+
+    // ── Default (documentary) branch ─────────────────────────────────────
     const systemPrompt = `You are the Original Perspective Engine for ScriptOS.
 Your mandate: Beat all generic YouTube scripts by applying at least one of these 6 proprietary lenses:
 1. Contrarian Reframe: Everyone says X, but actually Y is true because Z. (e.g. "Your morning routine is making you lazy")

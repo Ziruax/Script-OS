@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callUnifiedLLM, parseJsonSafe } from '@/lib/gemini-server';
 import { MASTER_SCRIPT_SPEC_INSTRUCTION, StoryDNA } from '@/lib/story-dna';
+import { STORY_DNA_SYSTEM_PROMPT } from '@/lib/story-mode';
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,8 +18,134 @@ export async function POST(req: NextRequest) {
       provider = 'google',
       model,
       api_key,
+      story_mode = false,
     } = await req.json();
 
+    // ── Story Mode branch: storytelling DNA (character, emotion, 3-act) ─────
+    if (story_mode) {
+      const systemPrompt = `${STORY_DNA_SYSTEM_PROMPT}
+
+OUTPUT FORMAT: Strict valid JSON matching the StoryModeDNA schema:
+{
+  "protagonist": {
+    "name": "...",
+    "description": "...",
+    "core_wound": "...",
+    "conscious_desire": "...",
+    "unconscious_need": "...",
+    "flaw": "...",
+    "voice": "..."
+  },
+  "theme": "...",
+  "stakes": {
+    "personal": "...",
+    "relational": "...",
+    "existential": "..."
+  },
+  "dramatic_engine": "the want vs need gap that drives the story",
+  "three_act_structure": {
+    "act1_setup": { "ordinary_world": "...", "inciting_incident": "...", "refusal": "...", "decision": "..." },
+    "act2_confrontation": { "rising_action": ["..."], "midpoint_revelation": "...", "dark_night": "...", "climax": "..." },
+    "act3_resolution": { "falling_action": "...", "resolution": "...", "transformation": "..." }
+  },
+  "emotional_arc": [{ "act": 1, "beat": "...", "feeling": "..." }],
+  "sensory_anchors": ["..."],
+  "show_vs_tell": { "dramatize": ["..."], "summarize": ["..."] },
+  "pov": "First person",
+  "tension_curve": { "opening": "...", "rising": "...", "climax": "...", "release": "..." },
+  "hook_strategy": { "hook_type": "In media res", "opening_image": "...", "hook_script": "..." },
+  "production_notes": { "target_duration_min": ${Number(length_min) || 15}, "scene_count": ${Math.max(3, Math.min(12, Math.round((Number(length_min) || 15) / 3)))}, "visual_style": "...", "sound_design": "..." }
+}
+
+No preamble. Return only JSON.`;
+
+      const userPrompt = `STORY CONCEPT: "${title}"
+USER DETAILS (characters, setting, events, nuances):
+"""
+${details || 'No additional details provided.'}
+"""
+TARGET DURATION: ${length_min} minutes
+CONTENT TYPE: ${content_type}
+NARRATIVE MODE: ${narrative_mode}
+
+RESEARCH ANCHORS (real facts to weave in):
+${JSON.stringify((research_pack?.facts || []).slice(0, 3))}
+
+Architect the full storytelling StoryModeDNA now.`;
+
+      let parsed: any = null;
+      try {
+        const raw = await callUnifiedLLM({
+          provider,
+          model,
+          apiKey: api_key,
+          prompt: userPrompt,
+          systemInstruction: systemPrompt,
+          jsonMode: true,
+          temperature: 0.6,
+        });
+        parsed = parseJsonSafe(raw, null);
+      } catch (llmErr) {
+        console.warn('[ScriptOS Story Mode] Story DNA LLM warning:', llmErr);
+      }
+
+      if (!parsed || !parsed.protagonist) {
+        // Story Mode fallback DNA
+        parsed = {
+          protagonist: {
+            name: 'The Protagonist',
+            description: `A figure confronting ${title}`,
+            core_wound: 'An unhealed hurt that drives every choice in this story.',
+            conscious_desire: `To achieve ${title}`,
+            unconscious_need: 'To accept the truth they have been avoiding.',
+            flaw: 'They believe willpower alone can bridge the gap.',
+            voice: 'Direct, guarded, with flashes of dry honesty.',
+          },
+          theme: `The thing we chase is rarely the thing we need.`,
+          stakes: {
+            personal: 'Who they become if they fail.',
+            relational: 'A bond that may not survive the attempt.',
+            existential: 'Whether they remain the person they were.',
+          },
+          dramatic_engine: 'The gap between conscious desire and unconscious need.',
+          three_act_structure: {
+            act1_setup: {
+              ordinary_world: 'The world before the wound is touched.',
+              inciting_incident: 'The event that reopens the wound.',
+              refusal: 'They try to walk away from it.',
+              decision: 'They commit to pursuing the want.',
+            },
+            act2_confrontation: {
+              rising_action: ['They chase the want and it almost works.'],
+              midpoint_revelation: 'They discover the want was never the answer.',
+              dark_night: 'They sit with the truth they cannot un-know.',
+              climax: 'They choose the need over the want (or tragically do not).',
+            },
+            act3_resolution: {
+              falling_action: 'The immediate aftermath.',
+              resolution: 'A new equilibrium.',
+              transformation: 'How they have changed.',
+            },
+          },
+          emotional_arc: [
+            { act: 1, beat: 'Ordinary World', feeling: 'Numb resignation' },
+            { act: 2, beat: 'Midpoint Revelation', feeling: 'Dawning dread' },
+            { act: 3, beat: 'Resolution', feeling: 'Quiet relief' },
+          ],
+          sensory_anchors: ['The cold coffee cup', 'The hum of the fridge', 'The smell of rain on hot asphalt'],
+          show_vs_tell: { dramatize: ['The moment the wound reopens'], summarize: ['the weeks of waiting'] },
+          pov: 'First person',
+          tension_curve: { opening: 'Low, intimate', rising: 'Compounding pressure', climax: 'The single decision', release: 'A held breath let go' },
+          hook_strategy: { hook_type: 'In media res', opening_image: 'A specific sensory image at the moment everything changes', hook_script: 'The first line that drops the viewer into the scene.' },
+          production_notes: { target_duration_min: Number(length_min) || 15, scene_count: Math.max(3, Math.min(12, Math.round((Number(length_min) || 15) / 3))), visual_style: 'Intimate, handheld, close on hands and faces', sound_design: 'Diegetic, room tone, no score until the climax' },
+        };
+      }
+      // Tag it so the frontend/store knows this is a Story Mode DNA.
+      parsed.__story_mode = true;
+      return NextResponse.json(parsed);
+    }
+
+    // ── Default (documentary) branch ──────────────────────────────────────
     const systemPrompt = `${MASTER_SCRIPT_SPEC_INSTRUCTION}
 
 You are the Master Story Strategist for ScriptOS (Pass 1).

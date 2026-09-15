@@ -47,6 +47,7 @@ export default function WizardView() {
     detectedRationale,
     isDetectingMetadata,
     storyDna,
+    storyMode,
     selectedModel,
     isGenerating,
     currentProgressMessage,
@@ -105,7 +106,9 @@ export default function WizardView() {
             New Script
           </h1>
           <p className="text-sm text-neutral-500 mt-1">
-            Configure your parameters, then generate a 10/10 retention-optimized script.
+            {storyMode
+              ? 'Story Mode: character arcs, emotional stakes, 3-act scenes, show-don\'t-tell.'
+              : 'Configure your parameters, then generate a 10/10 retention-optimized script.'}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -130,6 +133,49 @@ export default function WizardView() {
           >
             <HelpCircle className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Help</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Story Mode toggle — switches the entire pipeline methodology */}
+      <div className={`relative overflow-hidden rounded-2xl border p-4 transition-all ${
+        storyMode
+          ? 'border-amber-300 dark:border-amber-700 bg-gradient-to-br from-amber-50 to-orange-50/60 dark:from-amber-950/30 dark:to-orange-950/20'
+          : 'border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900'
+      }`}>
+        <div className="flex items-start gap-3">
+          <div className={`p-2 rounded-lg shrink-0 ${storyMode ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500'}`}>
+            <Film className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-bold text-neutral-900 dark:text-neutral-100">Story Mode</span>
+              <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                Storytelling
+              </span>
+              <span className="text-[10px] text-neutral-400">
+                {storyMode ? '— using character / emotion / 3-act methodology' : '— off (documentary / retention methodology)'}
+              </span>
+            </div>
+            <p className="text-[11px] text-neutral-600 dark:text-neutral-400 mt-1 leading-relaxed">
+              {storyMode ? (
+                <>The pipeline now optimizes for <strong>character arcs, emotional stakes, scene structure, show-don&apos;t-tell, and subtext</strong> — not curiosity gaps or retention hooks. Switch off for documentary / explainer / investigation videos.</>
+              ) : (
+                <>Turn this on for <strong>storytelling videos</strong> (personal narratives, drama, biography, fiction). Storytelling has different values &amp; stakes — character, emotion, theme, catharsis — that the default documentary pipeline doesn&apos;t capture.</>
+              )}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={storyMode}
+            onClick={() => updateInputs({ storyMode: !storyMode })}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-amber-500/40 ${
+              storyMode ? 'bg-amber-500' : 'bg-neutral-300 dark:bg-neutral-700'
+            }`}
+            title={storyMode ? 'Turn Story Mode off' : 'Turn Story Mode on'}
+          >
+            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${storyMode ? 'translate-x-5' : 'translate-x-0'}`} />
           </button>
         </div>
       </div>

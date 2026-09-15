@@ -147,7 +147,11 @@ export interface ScriptOSState {
   tone: 'Auto-detect' | 'Calm' | 'Energetic' | 'Dark' | 'Funny' | 'Cinematic';
   detectedRationale: string;
   isDetectingMetadata: boolean;
-  
+  // Story Mode — switches the entire pipeline to a storytelling methodology
+  // (character arcs, emotional stakes, 3-act scenes, show-don't-tell, subtext)
+  // instead of the default documentary/investigation methodology.
+  storyMode: boolean;
+
   // Settings & Models
   provider: 'zai' | 'google' | 'openai' | 'claude' | 'xai' | 'deepseek' | 'openrouter' | 'groq' | 'nvidia';
   apiKeys: Record<string, string>;
@@ -204,7 +208,7 @@ export interface ScriptOSState {
   setShowHelpModal: (show: boolean) => void;
   setShowPlaybookModal: (show: boolean) => void;
   setHasSeenOnboarding: (seen: boolean) => void;
-  updateInputs: (fields: Partial<Pick<ScriptOSState, 'title' | 'details' | 'lengthMin' | 'contentType' | 'narrativeMode' | 'audienceIntent' | 'emotionalEngine' | 'audience' | 'goal' | 'tone' | 'detectedRationale'>>) => void;
+  updateInputs: (fields: Partial<Pick<ScriptOSState, 'title' | 'details' | 'lengthMin' | 'contentType' | 'narrativeMode' | 'audienceIntent' | 'emotionalEngine' | 'audience' | 'goal' | 'tone' | 'detectedRationale' | 'storyMode'>>) => void;
   autoDetectMetadata: () => Promise<any>;
   updateSettings: (fields: Partial<Pick<ScriptOSState, 'provider' | 'selectedModel' | 'customModelId' | 'localMode'>>) => void;
   setApiKey: (provider: string, key: string) => void;
@@ -260,6 +264,7 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
   tone: 'Auto-detect',
   detectedRationale: '',
   isDetectingMetadata: false,
+  storyMode: false,
 
   provider: 'zai',
   apiKeys: {
@@ -426,7 +431,8 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
           details,
           provider,
           model,
-          api_key: apiKeys[provider] || ''
+          api_key: apiKeys[provider] || '',
+          story_mode: get().storyMode,
         })
       });
       const data = await res.json();
@@ -489,6 +495,7 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
           provider,
           model,
           api_key: apiKeys[provider] || '',
+          story_mode: get().storyMode,
         }),
       });
       const data = await res.json();
@@ -537,7 +544,8 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
           emotional_engine: emotionalEngine,
           provider,
           model,
-          api_key: apiKeys[provider] || ''
+          api_key: apiKeys[provider] || '',
+          story_mode: get().storyMode,
         })
       });
       const data = await res.json();
@@ -579,7 +587,8 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
           research_pack: researchPack,
           provider,
           model,
-          api_key: apiKeys[provider] || ''
+          api_key: apiKeys[provider] || '',
+          story_mode: get().storyMode,
         })
       });
       const data = await res.json();
@@ -662,7 +671,8 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
           research_pack: researchPack,
           provider,
           model,
-          api_key: apiKeys[provider] || ''
+          api_key: apiKeys[provider] || '',
+          story_mode: get().storyMode,
         })
       });
       const data = await res.json();
@@ -734,7 +744,8 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
             total_chapters: chapters.length,
             provider,
             model,
-            api_key: apiKeys[provider] || ''
+            api_key: apiKeys[provider] || '',
+          story_mode: get().storyMode,
           })
         });
         const sectionData = await res.json();
@@ -785,7 +796,8 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
           length_min: get().lengthMin || 8,
           provider,
           model,
-          api_key: apiKeys[provider] || ''
+          api_key: apiKeys[provider] || '',
+          story_mode: get().storyMode,
         })
       });
       const finalData = await humRes.json();
@@ -819,6 +831,7 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
           provider,
           model,
           api_key: apiKeys[provider] || '',
+          story_mode: get().storyMode,
         }),
       });
       const data = await res.json();
@@ -932,6 +945,7 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
           provider: state.provider,
           model,
           api_key: state.apiKeys[state.provider] || '',
+          story_mode: state.storyMode,
         }),
       });
 
