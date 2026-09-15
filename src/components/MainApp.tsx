@@ -9,6 +9,7 @@ import ScriptStudioView from '@/components/ScriptStudioView';
 import SettingsView from '@/components/SettingsView';
 import HelpModal from '@/components/HelpModal';
 import PlaybookModal from '@/components/PlaybookModal';
+import ProjectLibrary from '@/components/ProjectLibrary';
 import {
   Sparkles,
   Search,
@@ -21,6 +22,9 @@ import {
   Save,
   CheckCircle2,
   BookOpen,
+  Sun,
+  Moon,
+  FolderOpen,
 } from 'lucide-react';
 
 interface MainAppProps {
@@ -41,6 +45,9 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
     autoSaveTime,
     loadFromStorage,
     saveToStorage,
+    theme,
+    toggleTheme,
+    setShowProjectLibrary,
   } = useScriptOSStore();
 
   useEffect(() => {
@@ -49,7 +56,11 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
     if (!seen) {
       setShowHelpModal(true);
     }
-  }, [loadFromStorage, setShowHelpModal]);
+    // Ensure the initial theme class is applied to <html>
+    if (typeof window !== 'undefined') {
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+    }
+  }, [loadFromStorage, setShowHelpModal, theme]);
 
   useEffect(() => {
     if (initialTab) {
@@ -85,14 +96,16 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-black text-neutral-900 dark:text-neutral-100 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
       {/* Onboarding Help Modal */}
       <HelpModal />
       {/* Master Technique Playbook Modal */}
       <PlaybookModal />
+      {/* Project Library Modal */}
+      <ProjectLibrary />
 
       {/* Top Header Bar */}
-      <header className="sticky top-0 z-40 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-800">
+      <header className="sticky top-0 z-40 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl border-b border-neutral-200 dark:border-neutral-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           {/* Logo & Hardware Specs */}
           <div className="flex items-center gap-3">
@@ -100,7 +113,7 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
               onClick={() => setActiveTab('wizard')}
               className="flex items-center gap-2 font-bold text-lg tracking-tight hover:opacity-80 transition-opacity"
             >
-              <span className="w-8 h-8 rounded-xl bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 flex items-center justify-center font-black shadow-sm">
+              <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-neutral-900 to-neutral-700 dark:from-neutral-100 dark:to-neutral-300 text-white dark:text-neutral-900 flex items-center justify-center font-black shadow-md">
                 S
               </span>
               <span>ScriptOS</span>
@@ -108,7 +121,7 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
 
             <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900">
               <Cpu className="w-3.5 h-3.5" />
-              100% Local CPU Mode
+              {provider === 'zai' ? 'Z.AI Zero-Config' : '100% Local CPU Mode'}
             </span>
 
             <span className="hidden lg:inline-flex items-center gap-1 text-[11px] text-neutral-500 font-mono">
@@ -152,12 +165,30 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
             )}
 
             <button
+              onClick={() => setShowProjectLibrary(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors border border-neutral-200 dark:border-neutral-800"
+              title="Project Library — save & load scripts"
+            >
+              <FolderOpen className="w-3.5 h-3.5 text-purple-500" />
+              <span className="hidden sm:inline">Library</span>
+            </button>
+
+            <button
               onClick={() => setShowPlaybookModal(true)}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors border border-neutral-200 dark:border-neutral-800"
               title="Retention & Technique Playbook"
             >
               <BookOpen className="w-3.5 h-3.5 text-blue-500" />
               <span className="hidden sm:inline">Playbook</span>
+            </button>
+
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-xl text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
 
             <button
@@ -223,15 +254,16 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
       </main>
 
       {/* Footer Status */}
-      <footer className="py-4 border-t border-neutral-200 dark:border-neutral-800 bg-white/50 dark:bg-neutral-900/50 text-center text-xs text-neutral-400">
+      <footer className="mt-auto py-4 border-t border-neutral-200 dark:border-neutral-800 bg-white/50 dark:bg-neutral-900/50 text-center text-xs text-neutral-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div>
-            ScriptOS Local Operating System • Built for 4GB-8GB RAM CPU-only PCs
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            ScriptOS • Powered by {provider === 'zai' ? 'Z.AI GLM (zero-config)' : provider.toUpperCase()} • {selectedModel}
           </div>
           <div className="flex items-center gap-4">
             <span>Dual Review Councils (O1-O5 & S1-S6)</span>
-            <span>•</span>
-            <span>Zero External Search APIs Required</span>
+            <span className="hidden sm:inline">•</span>
+            <span className="hidden sm:inline">Real-time web research via ZAI</span>
           </div>
         </div>
       </footer>

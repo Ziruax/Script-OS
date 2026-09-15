@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
     const cleanProvider = provider.toLowerCase().trim();
     const effectiveKey = api_key.trim() || (cleanProvider === 'google' ? process.env.GEMINI_API_KEY : '');
 
-    if (!effectiveKey) {
+    if (!effectiveKey && cleanProvider !== 'zai') {
       return NextResponse.json(
         { detail: `No API key provided for ${cleanProvider.toUpperCase()}. Please paste your key.` },
         { status: 400 }
@@ -14,6 +14,17 @@ export async function POST(req: NextRequest) {
     }
 
     const models: Array<{ id: string; name: string; provider: string; context_length?: number }> = [];
+
+    // ZAI provider — zero-config, system-managed credentials (no key required)
+    if (cleanProvider === 'zai') {
+      models.push(
+        { id: 'glm-4.6', name: 'GLM-4.6 [Default • Balanced quality & speed]', provider: 'zai', context_length: 131072 },
+        { id: 'glm-4.5', name: 'GLM-4.5 (Faster, lighter)', provider: 'zai', context_length: 131072 },
+        { id: 'glm-4.5-air', name: 'GLM-4.5 Air (Lowest latency)', provider: 'zai', context_length: 131072 },
+        { id: 'glm-4-plus', name: 'GLM-4 Plus (Higher quality)', provider: 'zai', context_length: 131072 },
+      );
+      return NextResponse.json({ provider: 'zai', models });
+    }
 
     if (cleanProvider === 'google' || cleanProvider === 'gemini') {
       const url = `https://generativelanguage.googleapis.com/v1/models?key=${effectiveKey}`;

@@ -1,5 +1,16 @@
 import { GoogleGenAI } from '@google/genai';
 
+// Lazy ZAI singleton — created on first use (server-side only)
+let _zaiPromise: Promise<any> | null = null;
+async function getZai() {
+  if (!_zaiPromise) {
+    const mod = await import('z-ai-web-dev-sdk');
+    const ZAI = (mod as any).default || mod;
+    _zaiPromise = ZAI.create();
+  }
+  return _zaiPromise;
+}
+
 export function getGeminiClient(customApiKey?: string) {
   const key = customApiKey || process.env.GEMINI_API_KEY;
   if (!key) {
@@ -33,20 +44,58 @@ export async function callUnifiedLLM({
   temperature?: number;
 }): Promise<string> {
   const activeProvider = provider.toLowerCase().trim();
+
+  // ── ZAI provider (zero-config, uses system-managed credentials) ──────────
+  if (activeProvider === 'zai') {
+    const zai = await getZai();
+    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
+    if (systemInstruction) {
+      messages.push({ role: 'system', content: systemInstruction });
+    }
+    let userContent = prompt;
+    if (jsonMode) {
+      userContent += '\n\nOutput strictly valid JSON with no markdown wrapping, no preamble.';
+    }
+    messages.push({ role: 'user', content: userContent });
+
+    const completion = await zai.chat.completions.create({
+      model: model || 'glm-4.6',
+      messages,
+      thinking: { type: 'disabled' },
+      temperature,
+    } as any);
+
+    const text: string | undefined = completion?.choices?.[0]?.message?.content;
+    if (!text) {
+      throw new Error('ZAI returned an empty response.');
+    }
+    return text;
+  }
+
   const effectiveKey = apiKey?.trim() || (activeProvider === 'google' ? process.env.GEMINI_API_KEY : '');
 
   // If provider is Google (or no other provider key provided), use @google/genai with automatic model fallback
   if (activeProvider === 'google' || (!effectiveKey && process.env.GEMINI_API_KEY)) {
     const ai = getGeminiClient(effectiveKey || process.env.GEMINI_API_KEY);
 
-    // Normalize requested model to supported versions
-    let requestedModel = model?.trim() || 'gemini-3.8-flash';
-    if (requestedModel === 'gemini-2.0-flash' || requestedModel === 'gemini-1.5-flash' || requestedModel === 'gemini-2.5-pro') {
-      requestedModel = 'gemini-3.5-flash';
+    // Normalize requested model — only use real, currently-available Gemini models
+    let requestedModel = model?.trim() || 'gemini-2.5-flash';
+    // Fictional / deprecated -> safe modern default
+    const KNOWN_GOOD = new Set([
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+      'gemini-2.5-pro',
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-lite',
+      'gemini-1.5-pro',
+      'gemini-1.5-flash',
+    ]);
+    if (!KNOWN_GOOD.has(requestedModel)) {
+      requestedModel = 'gemini-2.5-flash';
     }
 
     // Supported active models in order of resilience
-    const fallbackList = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+    const fallbackList = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
     const candidateModels = [
       requestedModel,
       ...fallbackList.filter((m) => m !== requestedModel),

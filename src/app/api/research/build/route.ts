@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callUnifiedLLM, parseJsonSafe } from '@/lib/gemini-server';
-import { executePythonResearch } from '@/lib/python-researcher';
+import { executeZaiResearch } from '@/lib/zai-researcher';
 import { MASTER_SCRIPT_SPEC_INSTRUCTION } from '@/lib/story-dna';
 
 export async function POST(req: NextRequest) {
@@ -17,8 +17,8 @@ export async function POST(req: NextRequest) {
       api_key,
     } = await req.json();
 
-    // 1. Fetch live multi-source empirical research via Python engine (Wikipedia + Google Search + Reddit)
-    const pythonData = await executePythonResearch(title, details);
+    // 1. Fetch live multi-source empirical research via ZAI Web Search (Wikipedia + Web + Reddit)
+    const pythonData = await executeZaiResearch(title, details);
 
     const systemPrompt = `${MASTER_SCRIPT_SPEC_INSTRUCTION}
 
@@ -80,18 +80,18 @@ No preamble. Return only JSON.`;
 
     const pythonContext = pythonData
       ? `
-=== RETRIEVED PYTHON MULTI-SOURCE RESEARCH ===
-[WIKIPEDIA verified knowledge via Python]:
-${JSON.stringify(pythonData.wikipedia_articles.map((w) => ({ title: w.title, url: w.url, summary: w.summary })), null, 2)}
+=== RETRIEVED ZAI MULTI-SOURCE RESEARCH ===
+[WIKIPEDIA verified knowledge via ZAI Web Search]:
+${JSON.stringify(pythonData.wikipedia_articles.map((w) => ({ title: w.title, url: w.url, summary: w.snippet })), null, 2)}
 
-[REDDIT community threads & human confessions via Python]:
-${JSON.stringify(pythonData.reddit_threads.map((r) => ({ title: r.title, subreddit: r.subreddit, url: r.url, quote: r.snippet })), null, 2)}
+[REDDIT community threads & human confessions via ZAI Web Search]:
+${JSON.stringify(pythonData.reddit_threads.map((r) => ({ title: r.title, subreddit: r.host_name, url: r.url, quote: r.snippet })), null, 2)}
 
-[GOOGLE & WEB empirical studies via Python]:
+[WEB empirical studies & articles via ZAI Web Search]:
 ${JSON.stringify(pythonData.web_research.map((b) => ({ title: b.title, url: b.url, snippet: b.snippet })), null, 2)}
 ===============================================
 `
-      : 'Python research fallback mode.';
+      : 'ZAI web search returned no live results — synthesizing from model knowledge with fallback pack.';
 
     const userPrompt = `TOPIC: "${title}"
 USER DETAILS & ANGLES:
@@ -188,7 +188,7 @@ Synthesize the 4-Tier Research Pack now. Ground every fact and story in the retr
       };
     }
 
-    // Attach raw Python empirical research metadata if available
+    // Attach raw ZAI empirical research metadata if available
     if (pythonData) {
       pack.python_research = {
         engine: pythonData.metrics.engine,
@@ -198,11 +198,11 @@ Synthesize the 4-Tier Research Pack now. Ground every fact and story in the retr
         wikipedia_articles: pythonData.wikipedia_articles.map((w) => ({
           title: w.title,
           url: w.url,
-          summary: w.summary,
+          summary: w.snippet,
         })),
         reddit_threads: pythonData.reddit_threads.map((r) => ({
           title: r.title,
-          subreddit: r.subreddit,
+          subreddit: r.host_name,
           url: r.url,
           snippet: r.snippet,
         })),

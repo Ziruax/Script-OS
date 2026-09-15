@@ -1,1 +1,43 @@
 @import "tailwindcss";
+
+/* Enable class-based dark mode (Tailwind v4 — `dark:` variant toggled by `.dark` on <html>) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Smooth scrollbar styling for long lists */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(212 212 212 / 0.5) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: rgb(212 212 212 / 0.5);
+    border-radius: 9999px;
+  }
+  .dark * {
+    scrollbar-color: rgb(64 64 64 / 0.7) transparent;
+  }
+  .dark *::-webkit-scrollbar-thumb {
+    background-color: rgb(64 64 64 / 0.7);
+  }
+}
+
+/* Subtle fade-in animation utility used by modals and panels */
+@keyframes scriptos-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-in {
+  animation: scriptos-fade-in 0.2s ease-out;
+}
+.fade-in {
+  animation-name: scriptos-fade-in;
+}
+.duration-150 { animation-duration: 150ms; }
+.duration-200 { animation-duration: 200ms; }

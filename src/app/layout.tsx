@@ -16,9 +16,23 @@ export const metadata: Metadata = {
   },
 };
 
+// Inline script that runs before paint to apply the saved theme, preventing a flash.
+const themeInitScript = `
+(function() {
+  try {
+    var t = localStorage.getItem('scriptos_theme');
+    if (t !== 'light' && t !== 'dark') t = 'dark';
+    if (t === 'dark') document.documentElement.classList.add('dark');
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{__html: themeInitScript}} />
+      </head>
       <body suppressHydrationWarning>{children}</body>
     </html>
   );

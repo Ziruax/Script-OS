@@ -149,7 +149,7 @@ export interface ScriptOSState {
   isDetectingMetadata: boolean;
   
   // Settings & Models
-  provider: 'google' | 'openai' | 'claude' | 'xai' | 'deepseek' | 'openrouter';
+  provider: 'zai' | 'google' | 'openai' | 'claude' | 'xai' | 'deepseek' | 'openrouter';
   apiKeys: Record<string, string>;
   selectedModel: string;
   customModelId: string;
@@ -180,6 +180,22 @@ export interface ScriptOSState {
   currentProgressMessage: string;
   activeChapterGeneratingIndex: number;
   autoSaveTime: string;
+
+  // Project Library (named saved projects in localStorage)
+  savedProjects: Array<{
+    id: string;
+    name: string;
+    savedAt: number;
+    title: string;
+    lengthMin: number;
+    contentType: string;
+    scoreTotal?: number;
+    snapshot: Partial<ScriptOSState>;
+  }>,
+  showProjectLibrary: boolean;
+
+  // Theme
+  theme: 'light' | 'dark';
 
   // Actions
   setActiveTab: (tab: 'wizard' | 'settings' | 'research' | 'outline' | 'script') => void;
@@ -212,6 +228,11 @@ export interface ScriptOSState {
   saveToStorage: () => void;
   loadFromStorage: () => void;
   resetPipeline: () => void;
+  toggleTheme: () => void;
+  saveCurrentAsProject: (name?: string) => void;
+  loadProject: (id: string) => void;
+  deleteProject: (id: string) => void;
+  setShowProjectLibrary: (show: boolean) => void;
 }
 
 const STORAGE_KEY = 'scriptos_workspace_state_v1';
@@ -236,8 +257,9 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
   detectedRationale: '',
   isDetectingMetadata: false,
 
-  provider: 'google',
+  provider: 'zai',
   apiKeys: {
+    zai: '',
     google: '',
     openai: '',
     claude: '',
@@ -245,15 +267,15 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
     deepseek: '',
     openrouter: ''
   },
-  selectedModel: 'gemini-2.5-flash',
+  selectedModel: 'glm-4.6',
   customModelId: '',
   availableModels: [
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash [Recommended Default • Fast & Stable]', provider: 'google', context_length: 1048576 },
-    { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash (10 RPM • 250k TPM • 1.5k RPD)', provider: 'google', context_length: 1048576 },
-    { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', provider: 'google', context_length: 1048576 },
-    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Deep Reasoning)', provider: 'google', context_length: 2097152 },
-    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'google', context_length: 2097152 },
-    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'google', context_length: 1048576 }
+    { id: 'glm-4.6', name: 'GLM-4.6 [Default • Zero-config via Z.AI]', provider: 'zai', context_length: 131072 },
+    { id: 'glm-4.5', name: 'GLM-4.5 (Faster)', provider: 'zai', context_length: 131072 },
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (requires Google API key)', provider: 'google', context_length: 1048576 },
+    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Deep Reasoning, requires key)', provider: 'google', context_length: 2097152 },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini (requires OpenAI key)', provider: 'openai', context_length: 128000 },
+    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (requires Anthropic key)', provider: 'claude', context_length: 200000 },
   ],
   localMode: 'AUTO',
   ramInfo: {
@@ -279,6 +301,10 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
   currentProgressMessage: '',
   activeChapterGeneratingIndex: 0,
   autoSaveTime: '',
+
+  savedProjects: [],
+  showProjectLibrary: false,
+  theme: 'dark',
 
   setActiveTab: (tab) => set({ activeTab: tab }),
   setCurrentStep: (step) => set({ currentStep: step }),
@@ -966,15 +992,25 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       const onboarding = localStorage.getItem('scriptos_onboarding_completed');
+      // Restore saved project library
+      try {
+        const projLib = localStorage.getItem('scriptos_saved_projects');
+        if (projLib) {
+          set({ savedProjects: JSON.parse(projLib) });
+        }
+      } catch {}
+      // Restore theme preference
+      const savedTheme = localStorage.getItem('scriptos_theme');
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        set({ theme: savedTheme });
+        document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+      }
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (
-          parsed.selectedModel === 'gemini-2.0-flash' ||
-          parsed.selectedModel === 'gemini-1.5-flash' ||
-          parsed.selectedModel === 'gemini-2.5-pro' ||
-          !parsed.selectedModel
-        ) {
-          parsed.selectedModel = 'gemini-3.8-flash';
+        // Sanitize any fictional/deprecated Gemini model IDs that no longer exist on the API.
+        const FICTIONAL = new Set(['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-pro', 'gemini-3.8-pro']);
+        if (!parsed.selectedModel || FICTIONAL.has(parsed.selectedModel)) {
+          parsed.selectedModel = parsed.provider === 'zai' ? 'glm-4.6' : 'gemini-2.5-flash';
         }
         if (typeof parsed.details !== 'string') {
           parsed.details = '';
@@ -1009,5 +1045,78 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
       currentProgressMessage: ''
     });
     get().saveToStorage();
-  }
+  },
+
+  toggleTheme: () => {
+    const next = get().theme === 'dark' ? 'light' : 'dark';
+    set({ theme: next });
+    if (typeof window !== 'undefined') {
+      document.documentElement.classList.toggle('dark', next === 'dark');
+      localStorage.setItem('scriptos_theme', next);
+    }
+  },
+
+  setShowProjectLibrary: (show) => set({ showProjectLibrary: show }),
+
+  saveCurrentAsProject: (name?: string) => {
+    if (typeof window === 'undefined') return;
+    const s = get();
+    const project = {
+      id: `proj_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      name: name?.trim() || s.title?.slice(0, 60) || `Project ${new Date().toLocaleString()}`,
+      savedAt: Date.now(),
+      title: s.title,
+      lengthMin: s.lengthMin,
+      contentType: s.contentType,
+      scoreTotal: s.finalResult?.scorecard?.total,
+      snapshot: {
+        title: s.title,
+        details: s.details,
+        lengthMin: s.lengthMin,
+        contentType: s.contentType,
+        narrativeMode: s.narrativeMode,
+        audienceIntent: s.audienceIntent,
+        emotionalEngine: s.emotionalEngine,
+        audience: s.audience,
+        goal: s.goal,
+        tone: s.tone,
+        detectedRationale: s.detectedRationale,
+        storyDna: s.storyDna,
+        researchPack: s.researchPack,
+        angles: s.angles,
+        chosenAngle: s.chosenAngle,
+        outlineData: s.outlineData,
+        outlineCouncilEval: s.outlineCouncilEval,
+        chapters: s.chapters,
+        finalResult: s.finalResult,
+        qaScorecard: s.qaScorecard,
+        currentStep: s.currentStep,
+      },
+    };
+    const updated = [project, ...s.savedProjects.filter((p) => p.name !== project.name)].slice(0, 50);
+    set({ savedProjects: updated });
+    try {
+      localStorage.setItem('scriptos_saved_projects', JSON.stringify(updated));
+    } catch {}
+  },
+
+  loadProject: (id) => {
+    const project = get().savedProjects.find((p) => p.id === id);
+    if (!project) return;
+    const snap = project.snapshot as any;
+    set({
+      ...snap,
+      activeTab: 'wizard',
+      showProjectLibrary: false,
+    });
+    get().saveToStorage();
+  },
+
+  deleteProject: (id) => {
+    const updated = get().savedProjects.filter((p) => p.id !== id);
+    set({ savedProjects: updated });
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('scriptos_saved_projects', JSON.stringify(updated));
+    }
+  },
 }));

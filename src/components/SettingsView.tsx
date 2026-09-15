@@ -38,8 +38,28 @@ export default function SettingsView() {
   const [showKey, setShowKey] = useState(false);
   const [modelSearch, setModelSearch] = useState('');
 
+  const isZai = provider === 'zai';
+
+  const connectionStatusBlock = connectionStatus ? (
+    <div
+      className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+        connectionStatus.success
+          ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+          : 'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+      }`}
+    >
+      {connectionStatus.success ? (
+        <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+      ) : (
+        <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+      )}
+      <span>{connectionStatus.message}</span>
+    </div>
+  ) : null;
+
   const providers = [
-    { id: 'google', name: 'Google Gemini', desc: 'Free high-rate tier (Recommended)', freeTier: true },
+    { id: 'zai', name: 'Z.AI GLM', desc: 'Zero-config • No API key needed (Default)', freeTier: true, recommended: true },
+    { id: 'google', name: 'Google Gemini', desc: 'Free high-rate tier', freeTier: true },
     { id: 'openai', name: 'OpenAI', desc: 'GPT-4o, GPT-4o Mini', freeTier: false },
     { id: 'claude', name: 'Anthropic Claude', desc: 'Claude 3.5 Sonnet, Haiku', freeTier: false },
     { id: 'deepseek', name: 'DeepSeek', desc: 'DeepSeek V3, DeepSeek R1', freeTier: false },
@@ -92,29 +112,37 @@ export default function SettingsView() {
         <label className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 flex items-center justify-between">
           <span>1. Select LLM Provider Brain</span>
           <span className="text-xs font-normal text-neutral-500">
-            User provides their own key • Stored encrypted in <code className="text-xs bg-neutral-100 dark:bg-neutral-800 px-1 py-0.5 rounded">data/.env.enc</code>
+            Z.AI needs no key • Others require your own key, stored locally
           </span>
         </label>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           {providers.map((p) => {
             const isSelected = provider === p.id;
+            const isZai = p.id === 'zai';
             return (
               <button
                 key={p.id}
                 type="button"
                 onClick={() => updateSettings({ provider: p.id as any })}
-                className={`p-3.5 rounded-xl border text-left transition-all ${
+                className={`relative p-3.5 rounded-xl border text-left transition-all overflow-hidden ${
                   isSelected
-                    ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/30 dark:border-blue-500 shadow-sm'
+                    ? isZai
+                      ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/30 dark:border-emerald-500 shadow-md'
+                      : 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/30 dark:border-blue-500 shadow-sm'
                     : 'border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:border-neutral-300 dark:hover:border-neutral-700'
                 }`}
               >
-                <div className="flex items-center justify-between">
+                {p.recommended && (
+                  <span className="absolute top-2 right-2 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-600 text-white">
+                    Recommended
+                  </span>
+                )}
+                <div className="flex items-center justify-between pr-16">
                   <span className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">
                     {p.name}
                   </span>
-                  {p.freeTier && (
+                  {p.freeTier && !p.recommended && (
                     <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300">
                       Free Tier
                     </span>
@@ -127,7 +155,42 @@ export default function SettingsView() {
         </div>
       </div>
 
-      {/* API Key Input & Model Fetching */}
+      {/* API Key Input & Model Fetching — hidden for ZAI (zero-config) */}
+      {provider === 'zai' ? (
+        <div className="p-5 rounded-2xl border border-emerald-200 dark:border-emerald-900/60 bg-gradient-to-br from-emerald-50/60 to-teal-50/40 dark:from-emerald-950/20 dark:to-teal-950/10 space-y-3 shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold text-emerald-950 dark:text-emerald-200">Z.AI GLM — Zero-Config Mode Active</div>
+              <div className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
+                No API key required. The Z.AI GLM model runs via the system-managed <code className="text-[10px] bg-emerald-100 dark:bg-emerald-900/50 px-1 py-0.5 rounded">z-ai-web-dev-sdk</code>.
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={fetchLiveModels}
+              disabled={isFetchingModels}
+              className="px-4 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl flex items-center gap-2 disabled:opacity-50 transition-colors shadow-sm"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isFetchingModels ? 'animate-spin' : ''}`} />
+              Load GLM Models
+            </button>
+            <button
+              type="button"
+              onClick={testConnection}
+              disabled={isTestingConnection}
+              className="px-4 py-2.5 text-xs font-semibold text-emerald-900 dark:text-emerald-100 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-800 rounded-xl flex items-center gap-2 disabled:opacity-50 transition-colors"
+            >
+              {isTestingConnection ? 'Testing...' : 'Test Connection'}
+            </button>
+          </div>
+          {connectionStatusBlock}
+        </div>
+      ) : (
       <div className="p-5 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 space-y-4 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <label className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
@@ -184,22 +247,7 @@ export default function SettingsView() {
         </div>
 
         {/* Connection status notification */}
-        {connectionStatus && (
-          <div
-            className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
-              connectionStatus.success
-                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                : 'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
-            }`}
-          >
-            {connectionStatus.success ? (
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-            ) : (
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-            )}
-            <span>{connectionStatus.message}</span>
-          </div>
-        )}
+        {connectionStatusBlock}
 
         {/* Searchable Model Dropdown */}
         <div className="pt-2 border-t border-neutral-100 dark:border-neutral-800 space-y-3">
@@ -255,12 +303,13 @@ export default function SettingsView() {
               type="text"
               value={customModelId}
               onChange={(e) => updateSettings({ customModelId: e.target.value })}
-              placeholder="e.g. gemini-2.0-flash or gpt-4o-2024-08-06"
+              placeholder="e.g. gemini-2.5-flash or gpt-4o-2024-08-06"
               className="w-full px-3 py-2 text-xs rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
         </div>
       </div>
+      )}
 
       {/* Local Vector Mode */}
       <div className="p-5 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 space-y-4 shadow-sm">

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executePythonResearch } from '@/lib/python-researcher';
+import { executeZaiResearch } from '@/lib/zai-researcher';
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Query is required' }, { status: 400 });
     }
 
-    const data = await executePythonResearch(query, details);
+    const data = await executeZaiResearch(query, details);
 
     if (!data) {
       return NextResponse.json(
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
             wikipedia_count: 0,
             reddit_count: 0,
             web_count: 0,
-            engine: 'Python 3 (Fallback Mode)',
+            engine: 'ZAI Web Search (no results)',
           },
         },
         { status: 200 }
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(data);
   } catch (err: any) {
     return NextResponse.json(
-      { error: err.message || 'Python research lookup failed' },
+      { error: err.message || 'ZAI research lookup failed' },
       { status: 500 }
     );
   }
