@@ -157,19 +157,27 @@ export async function callUnifiedLLM({
     throw lastError || new Error('All Gemini model candidates failed to respond.');
   }
 
-  // Handle OpenAI, XAI, DeepSeek, OpenRouter
-  if (['openai', 'xai', 'deepseek', 'openrouter'].includes(activeProvider)) {
+  // Handle OpenAI, XAI, DeepSeek, OpenRouter, Groq, NVIDIA NIM — all OpenAI-compatible
+  if (['openai', 'xai', 'deepseek', 'openrouter', 'groq', 'nvidia', 'nim'].includes(activeProvider)) {
     let endpoint = 'https://api.openai.com/v1/chat/completions';
     if (activeProvider === 'xai') endpoint = 'https://api.x.ai/v1/chat/completions';
     if (activeProvider === 'deepseek') endpoint = 'https://api.deepseek.com/chat/completions';
     if (activeProvider === 'openrouter') endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+    if (activeProvider === 'groq') endpoint = 'https://api.groq.com/openai/v1/chat/completions';
+    if (activeProvider === 'nvidia' || activeProvider === 'nim') endpoint = 'https://integrate.api.nvidia.com/v1/chat/completions';
 
     const messages = [];
     if (systemInstruction) messages.push({ role: 'system', content: systemInstruction });
     messages.push({ role: 'user', content: prompt });
 
+    const defaultModel =
+      activeProvider === 'deepseek' ? 'deepseek-chat' :
+      activeProvider === 'groq' ? 'llama-3.3-70b-versatile' :
+      activeProvider === 'nvidia' || activeProvider === 'nim' ? 'meta/llama-3.3-70b-instruct' :
+      'gpt-4o-mini';
+
     const body: Record<string, any> = {
-      model: model || (activeProvider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini'),
+      model: model || defaultModel,
       messages,
       temperature,
     };
@@ -182,6 +190,8 @@ export async function callUnifiedLLM({
       headers: {
         Authorization: `Bearer ${effectiveKey}`,
         'Content-Type': 'application/json',
+        // NVIDIA NIM requires an Accept header; harmless for the others.
+        ...(activeProvider === 'nvidia' || activeProvider === 'nim' ? { Accept: 'application/json' } : {}),
       },
       body: JSON.stringify(body),
     });

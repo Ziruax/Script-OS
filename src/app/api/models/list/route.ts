@@ -173,7 +173,67 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ provider: cleanProvider, models });
+    // Groq — ultra-fast inference. OpenAI-compatible API.
+    if (cleanProvider === 'groq') {
+      const res = await fetch('https://api.groq.com/openai/v1/models', {
+        headers: { Authorization: `Bearer ${effectiveKey}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        for (const m of data.data || []) {
+          // Groq exposes many model variants — include all of them.
+          models.push({
+            id: m.id,
+            name: m.id,
+            provider: 'groq',
+            context_length: m.context_window || 32768,
+          });
+        }
+        models.sort((a, b) => a.id.localeCompare(b.id));
+        return NextResponse.json({ provider: 'groq', models, live: true });
+      } else {
+        models.push(
+          { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B Versatile', provider: 'groq', context_length: 32768 },
+          { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant', provider: 'groq', context_length: 32768 },
+          { id: 'llama-3.1-70b-versatile', name: 'Llama 3.1 70B Versatile', provider: 'groq', context_length: 32768 },
+          { id: 'gemma2-9b-it', name: 'Gemma 2 9B', provider: 'groq', context_length: 8192 },
+          { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B', provider: 'groq', context_length: 32768 },
+        );
+        return NextResponse.json({ provider: 'groq', models, live: false });
+      }
+    }
+
+    // NVIDIA NIM — hosted open models via integrate.api.nvidia.com. OpenAI-compatible.
+    if (cleanProvider === 'nvidia' || cleanProvider === 'nim') {
+      const res = await fetch('https://integrate.api.nvidia.com/v1/models', {
+        headers: { Authorization: `Bearer ${effectiveKey}`, Accept: 'application/json' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        for (const m of data.data || []) {
+          models.push({
+            id: m.id,
+            name: m.id,
+            provider: 'nvidia',
+            context_length: 32768,
+          });
+        }
+        models.sort((a, b) => a.id.localeCompare(b.id));
+        return NextResponse.json({ provider: 'nvidia', models, live: true });
+      } else {
+        models.push(
+          { id: 'meta/llama-3.3-70b-instruct', name: 'Llama 3.3 70B Instruct (NIM)', provider: 'nvidia', context_length: 32768 },
+          { id: 'meta/llama-3.1-70b-instruct', name: 'Llama 3.1 70B Instruct (NIM)', provider: 'nvidia', context_length: 32768 },
+          { id: 'meta/llama-3.1-8b-instruct', name: 'Llama 3.1 8B Instruct (NIM)', provider: 'nvidia', context_length: 32768 },
+          { id: 'mistralai/mistral-7b-instruct-v0.3', name: 'Mistral 7B Instruct (NIM)', provider: 'nvidia', context_length: 32768 },
+          { id: 'qwen/qwen2.5-7b-instruct', name: 'Qwen 2.5 7B Instruct (NIM)', provider: 'nvidia', context_length: 32768 },
+          { id: 'deepseek-ai/deepseek-r1', name: 'DeepSeek R1 (NIM)', provider: 'nvidia', context_length: 32768 },
+        );
+        return NextResponse.json({ provider: 'nvidia', models, live: false });
+      }
+    }
+
+    return NextResponse.json({ provider: cleanProvider, models, live: !!effectiveKey });
   } catch (err: any) {
     return NextResponse.json({ detail: err.message || 'Error fetching models' }, { status: 500 });
   }

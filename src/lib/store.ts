@@ -149,11 +149,12 @@ export interface ScriptOSState {
   isDetectingMetadata: boolean;
   
   // Settings & Models
-  provider: 'zai' | 'google' | 'openai' | 'claude' | 'xai' | 'deepseek' | 'openrouter';
+  provider: 'zai' | 'google' | 'openai' | 'claude' | 'xai' | 'deepseek' | 'openrouter' | 'groq' | 'nvidia';
   apiKeys: Record<string, string>;
   selectedModel: string;
   customModelId: string;
   availableModels: Array<{ id: string; name: string; provider: string; context_length?: number }>;
+  modelsLive: boolean; // true if availableModels came from a live API fetch (vs static fallback)
   localMode: 'AUTO' | 'TFIDF' | 'FASTEMBED';
   ramInfo: {
     total_gb: number;
@@ -268,10 +269,13 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
     claude: '',
     xai: '',
     deepseek: '',
-    openrouter: ''
+    openrouter: '',
+    groq: '',
+    nvidia: '',
   },
   selectedModel: 'glm-4.6',
   customModelId: '',
+  modelsLive: false,
   availableModels: [
     { id: 'glm-4.6', name: 'GLM-4.6 · Balanced quality & speed', provider: 'zai', context_length: 131072 },
     { id: 'glm-4.5', name: 'GLM-4.5 · Fast & capable', provider: 'zai', context_length: 131072 },
@@ -358,8 +362,14 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
         set({
           availableModels: data.models,
           selectedModel: data.models[0].id,
+          modelsLive: !!data.live,
           isFetchingModels: false,
-          connectionStatus: { success: true, message: `Fetched ${data.models.length} live models from ${provider.toUpperCase()}` }
+          connectionStatus: {
+            success: true,
+            message: data.live
+              ? `Fetched ${data.models.length} live models from ${provider.toUpperCase()}`
+              : `Showing ${data.models.length} models (static catalogue — add an API key to fetch the live list)`,
+          },
         });
       } else {
         set({

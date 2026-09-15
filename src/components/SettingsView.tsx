@@ -22,6 +22,7 @@ export default function SettingsView() {
     selectedModel,
     customModelId,
     availableModels,
+    modelsLive,
     localMode,
     ramInfo,
     isFetchingModels,
@@ -63,6 +64,8 @@ export default function SettingsView() {
     { id: 'deepseek', name: 'DeepSeek', desc: 'DeepSeek V3, R1' },
     { id: 'xai', name: 'xAI Grok', desc: 'Grok 2, Grok 2 Mini' },
     { id: 'openrouter', name: 'OpenRouter', desc: 'Aggregator (all models)' },
+    { id: 'groq', name: 'Groq', desc: 'Ultra-fast Llama / Mixtral inference' },
+    { id: 'nvidia', name: 'NVIDIA NIM', desc: 'Hosted open models (Llama, Mistral, Qwen)' },
   ];
 
   const filteredModels = availableModels.filter(
@@ -238,19 +241,50 @@ export default function SettingsView() {
       {/* Model picker */}
       <section className="surface rounded-2xl p-5 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <label className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-            Choose Model <span className="text-[11px] text-neutral-400 font-normal">({availableModels.length} available for {provider.toUpperCase()})</span>
+          <label className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 flex items-center gap-2 flex-wrap">
+            Choose Model
+            <span className="text-[11px] text-neutral-400 font-normal">({availableModels.length} for {provider.toUpperCase()})</span>
+            {modelsLive ? (
+              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+              </span>
+            ) : (
+              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                Static catalogue
+              </span>
+            )}
           </label>
-          <input
-            type="text"
-            value={modelSearch}
-            onChange={(e) => setModelSearch(e.target.value)}
-            placeholder="Search models…"
-            className="text-xs px-2.5 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 w-full sm:w-40"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={modelSearch}
+              onChange={(e) => setModelSearch(e.target.value)}
+              placeholder="Search models…"
+              className="text-xs px-2.5 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 w-full sm:w-40"
+            />
+            <button
+              type="button"
+              onClick={fetchLiveModels}
+              disabled={isFetchingModels || isZai}
+              className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm shrink-0"
+              title={isZai ? 'Z.AI catalogue is always the full list' : `Fetch all live models from ${provider.toUpperCase()}`}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isFetchingModels ? 'animate-spin' : ''}`} />
+              Fetch All
+            </button>
+          </div>
         </div>
 
-        <div className="max-h-56 overflow-y-auto border border-neutral-200 dark:border-neutral-800 rounded-lg divide-y divide-neutral-100 dark:divide-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+        {!isZai && !modelsLive && (
+          <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-2">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            <span>
+              Showing the static catalogue. Paste your {provider.toUpperCase()} API key above and click <strong>Fetch All</strong> to load every live model from {provider.toUpperCase()}.
+            </span>
+          </div>
+        )}
+
+        <div className="max-h-64 overflow-y-auto border border-neutral-200 dark:border-neutral-800 rounded-lg divide-y divide-neutral-100 dark:divide-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
           {filteredModels.length > 0 ? (
             filteredModels.map((m) => {
               const isSelected = selectedModel === m.id && !customModelId;
@@ -275,7 +309,7 @@ export default function SettingsView() {
             })
           ) : (
             <div className="p-4 text-center text-xs text-neutral-500">
-              No matching models. Click “Fetch” above to load the full live catalogue from {provider.toUpperCase()}.
+              No matching models. Click <strong>Fetch All</strong> above to load the live catalogue from {provider.toUpperCase()}.
             </div>
           )}
         </div>

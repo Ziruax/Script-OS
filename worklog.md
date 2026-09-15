@@ -449,3 +449,44 @@ Unresolved issues / risks / next-phase priorities:
 - Could add a small "live" vs "fallback" badge on each model in the picker so users know whether the list is fresh from the API or a static snapshot.
 - The Logo.tsx inline SVG duplicates the public/logo.svg markup — could DRY by generating one from the other, but keeping them separate is simpler and avoids build complexity.
 - Could add the logo to the onboarding HelpModal and the PlaybookModal headers for full brand consistency.
+
+---
+Task ID: 10 (user-requested: fix model fetch + add Groq & NVIDIA NIM)
+Agent: main (Z.ai Code)
+Task: User reported: "still when i selected a provider it does not shows all the models that provider is providing use get to fetch all models also add 2 more providers" — provided Groq + NVIDIA NIM reference snippets.
+
+Work Log:
+- Read previous worklog (Task 9: logo + 10 ZAI models + auto-fetch). The auto-fetch on provider change was working, but WITHOUT an API key the live fetch failed silently and the user only saw the small static fallback list — there was no clear "fetch all" affordance and no indication of whether the list was live or static. User also requested 2 new providers: Groq and NVIDIA NIM.
+
+FIX 1 — Make "fetch all models" explicit + show live vs static status:
+- Added `modelsLive: boolean` to the store (true when the list came from a live API fetch, false for the static fallback).
+- `fetchLiveModels()` now reads `data.live` from the API response and sets `modelsLive`; the connection-status toast differentiates "Fetched N live models from X" vs "Showing N models (static catalogue — add an API key to fetch the live list)".
+- `/api/models/list` route now returns a `live: true|false` flag on every response (true when the live API call succeeded, false for fallback).
+- SettingsView model picker redesigned:
+  - Header now shows a "Live" badge (emerald, pulsing dot) OR a "Static catalogue" badge (amber) next to the model count.
+  - Added a prominent emerald "Fetch All" button next to the search box (disabled for ZAI since its catalogue is always complete). Clicking it triggers `fetchLiveModels()` to pull the full live list.
+  - When showing the static catalogue for a non-ZAI provider (no key), an amber hint banner appears: "Showing the static catalogue. Paste your {PROVIDER} API key above and click Fetch All to load every live model from {PROVIDER}."
+- Verified live: NVIDIA NIM (publicly-readable list endpoint) → "Fetched 81 live models from NVIDIA" + "Live" badge. OpenAI (no key) → "Static catalogue" badge + amber hint.
+
+FIX 2 — Added 2 new providers: Groq + NVIDIA NIM:
+- store.ts: extended the `provider` union type to include `'groq' | 'nvidia'`, added `groq: ''` + `nvidia: ''` to `apiKeys` defaults, `modelsLive: false` default.
+- gemini-server.ts `callUnifiedLLM()`: added `groq`/`nvidia`/`nim` to the OpenAI-compatible branch. Groq endpoint: `https://api.groq.com/openai/v1/chat/completions`. NVIDIA NIM endpoint: `https://integrate.api.nvidia.com/v1/chat/completions`. Added per-provider default models (Groq → `llama-3.3-70b-versatile`, NVIDIA → `meta/llama-3.3-70b-instruct`). NVIDIA NIM sends an `Accept: application/json` header (required by its API).
+- /api/models/list route: added a `groq` branch (live fetch from `https://api.groq.com/openai/v1/models` + 5-model fallback: Llama 3.3 70B, Llama 3.1 8B/70B, Gemma 2 9B, Mixtral 8x7B) and an `nvidia`/`nim` branch (live fetch from `https://integrate.api.nvidia.com/v1/models` + 6-model fallback: Llama 3.3/3.1 70B/8B, Mistral 7B, Qwen 2.5 7B, DeepSeek R1). Both live branches sort models alphabetically and return `{live: true}`.
+- SettingsView: added 2 new provider cards: "Groq — Ultra-fast Llama / Mixtral inference" and "NVIDIA NIM — Hosted open models (Llama, Mistral, Qwen)".
+- Verified live: all 9 providers return 200 with their full catalogue (no key): zai=10, google=5, openai=3, claude=3, deepseek=2, xai=2, openrouter=50, groq=5, **nvidia=81 LIVE** (NVIDIA's model list endpoint is publicly readable).
+
+VERIFICATION:
+- `bun run lint` → clean (0 errors, 0 warnings).
+- Dev server: Next.js 16.3.5, ready, zero errors. All POST /api/models/list calls return 200.
+- agent-browser QA: zero page errors. All 9 provider cards render (Z.AI GLM, Google Gemini, OpenAI, Anthropic Claude, DeepSeek, xAI Grok, OpenRouter, Groq, NVIDIA NIM). Click NVIDIA NIM → "81 for NVIDIA" + "Live" badge. Click Fetch All → "Fetched 81 live models from NVIDIA". Switch to OpenAI → static catalogue + amber hint "Paste your OPENAI API key above and click Fetch All". Fetch All button present.
+- Captured 1 screenshot: scriptos-v10-providers-nvidia.png.
+
+Stage Summary:
+- Both user requests delivered: (1) users can now fetch ALL models from any provider via a prominent "Fetch All" button, with clear live/static status badges + an amber hint when the static fallback is showing (telling them to add a key + click Fetch All); (2) added Groq + NVIDIA NIM as full providers (model listing + chat completions + Settings cards). NVIDIA NIM returns 81 live models with no key (publicly-readable endpoint).
+- All changes lint-clean and verified end-to-end via agent-browser + curl across all 9 providers.
+
+Unresolved issues / risks / next-phase priorities:
+- The Groq/NVIDIA chat completions paths are implemented but not yet smoke-tested with a live generation (no API keys available in the sandbox). The model-listing is verified; the chat path uses the standard OpenAI-compatible format so it should work once a user adds a key.
+- Could add provider-specific "Get a free key" links for Groq (console.groq.com) and NVIDIA (build.nvidia.com) in the Settings API-key panel.
+- Could cache the live model list per-provider in localStorage (with a TTL) so switching back to a previously-fetched provider doesn't re-fetch.
+- The metadataBase warning in the dev log is harmless (just affects OG image URL resolution in dev).
