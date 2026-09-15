@@ -1,0 +1,6 @@
+{
+  "name": "ScriptOS",
+  "description": "Local Script Operating System for retention-optimized, undetectable, unique-perspective scripts with multi-model brain and local intelligence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,1014 @@
+     1→import { create } from 'zustand';
+     2→import { autoSanitizeBannedWords, scanScriptAntiAi } from '@/lib/anti-ai-scanner';
+     3→import {
+     4→  StoryDNA,
+     5→  ContentType,
+     6→  NarrativeMode,
+     7→  AudienceIntent,
+     8→  EmotionalEngine,
+     9→  QaScorecard,
+    10→} from '@/lib/story-dna';
+    11→
+    12→export interface ResearchPack {
+    13→  facts: Array<{ fact: string; source: string; domain?: string }>;
+    14→  stats: Array<{ stat: string; source: string }>;
+    15→  human_stories: Array<{ story: string; source: string; subreddit?: string }>;
+    16→  competitor_gaps: string[];
+    17→  controversial_angles: string[];
+    18→  sources: string[];
+    19→  competitor_hooks: string[];
+    20→  python_research?: {
+    21→    engine: string;
+    22→    wikipedia_count: number;
+    23→    reddit_count: number;
+    24→    web_count: number;
+    25→    wikipedia_articles?: Array<{ title: string; url: string; summary: string }>;
+    26→    reddit_threads?: Array<{ title: string; subreddit: string; url: string; snippet: string }>;
+    27→    web_research?: Array<{ title: string; url: string; snippet: string }>;
+    28→  };
+    29→}
+    30→
+    31→export interface Angle {
+    32→  angle_title: string;
+    33→  lens_used: string;
+    34→  unique_statement: string;
+    35→  why_different: string;
+    36→  hook_example: string;
+    37→}
+    38→
+    39→export interface ChapterOutline {
+    40→  id: number;
+    41→  title: string;
+    42→  goal: string;
+    43→  open_loop: string;
+    44→  stakes_external: string;
+    45→  stakes_internal: string;
+    46→  philosophical_stakes: string;
+    47→  broll_cue: string;
+    48→  re_hook: string;
+    49→  estimated_seconds: number;
+    50→}
+    51→
+    52→export interface OutlineCouncilEval {
+    53→  overall_pass: boolean;
+    54→  critics: {
+    55→    O1_logic?: { score: number; issues?: string[]; fix?: string };
+    56→    O2_avatar?: { score: number; bored_points?: string[]; too_basic_points?: string[]; fix?: string };
+    57→    O3_retention?: { score: number; missing_rehooks?: number[]; low_stakes_chapters?: number[]; fix?: string };
+    58→    O4_novelty?: { score: number; novelty_issues?: string[]; fix?: string };
+    59→    O5_ai_detector?: { score: number; banned_words_found?: Array<{ word: string; chapter?: number }>; fix?: string };
+    60→  };
+    61→  summary_feedback?: string;
+    62→}
+    63→
+    64→export interface ChapterScript {
+    65→  chapter_id: number;
+    66→  title: string;
+    67→  script_text: string;
+    68→  council_eval?: {
+    69→    overall_pass?: boolean;
+    70→    critics?: {
+    71→      S1_pacing?: { score: number; issues?: string[]; fix?: string };
+    72→      S2_human_voice?: { score: number; ai_patterns_found?: string[]; fixed_sentences?: Array<{ original: string; replacement: string }> };
+    73→      S3_emotion?: { score: number; emotion_flat_points?: string[]; fix?: string };
+    74→      S4_facts?: { score: number; hallucinated_facts?: string[]; fix?: string };
+    75→      S5_simplicity?: { score: number; complex_sentences?: string[]; fix?: string };
+    76→      S6_payoff?: { score: number; missing_payoffs?: string[]; fix?: string };
+    77→    };
+    78→    surgical_edits?: Array<{ find: string; replace: string }>;
+    79→  };
+    80→}
+    81→
+    82→export interface Scorecard {
+    83→  hook: number;
+    84→  stakes: number;
+    85→  novelty: number;
+    86→  loops: number;
+    87→  human_voice: number;
+    88→  payoff: number;
+    89→  total: number;
+    90→  max_possible: number;
+    91→  retention_grade: string;
+    92→  burstiness?: {
+    93→    sentence_count: number;
+    94→    avg_words: number;
+    95→    std_dev: number;
+    96→    burstiness_score: number;
+    97→    is_human: boolean;
+    98→  };
+    99→  ai_flags_count?: number;
+   100→}
+   101→
+   102→export interface HookVariation {
+   103→  type: string;
+   104→  hook_text: string;
+   105→  why_it_works: string;
+   106→}
+   107→
+   108→export interface TitleVariation {
+   109→  title: string;
+   110→  type: string;
+   111→  why_it_works: string;
+   112→}
+   113→
+   114→export interface FinalScriptResult {
+   115→  final_script: string;
+   116→  hooks: HookVariation[];
+   117→  title_variations?: TitleVariation[];
+   118→  scorecard: Scorecard;
+   119→  sources: string[];
+   120→  quality_gate?: {
+   121→    passed: boolean;
+   122→    threshold: number;
+   123→    score: number;
+   124→  };
+   125→  word_metrics?: any;
+   126→  anti_ai_scan?: any;
+   127→}
+   128→
+   129→export interface ScriptOSState {
+   130→  // Navigation & Step
+   131→  activeTab: 'wizard' | 'settings' | 'research' | 'outline' | 'script';
+   132→  currentStep: number; // 1: Input, 2: Research, 3: Angles, 4: Outline, 5: Script
+   133→  hasSeenOnboarding: boolean;
+   134→  showHelpModal: boolean;
+   135→  showPlaybookModal: boolean;
+   136→  
+   137→  // Wizard Inputs
+   138→  title: string;
+   139→  details: string;
+   140→  lengthMin: number;
+   141→  contentType: ContentType;
+   142→  narrativeMode: NarrativeMode;
+   143→  audienceIntent: AudienceIntent;
+   144→  emotionalEngine: EmotionalEngine;
+   145→  audience: 'Auto-detect' | 'Beginner' | 'Intermediate' | 'Expert';
+   146→  goal: 'Auto-detect' | 'Educate' | 'Persuade' | 'Entertain' | 'Sell' | 'Viral';
+   147→  tone: 'Auto-detect' | 'Calm' | 'Energetic' | 'Dark' | 'Funny' | 'Cinematic';
+   148→  detectedRationale: string;
+   149→  isDetectingMetadata: boolean;
+   150→  
+   151→  // Settings & Models
+   152→  provider: 'google' | 'openai' | 'claude' | 'xai' | 'deepseek' | 'openrouter';
+   153→  apiKeys: Record<string, string>;
+   154→  selectedModel: string;
+   155→  customModelId: string;
+   156→  availableModels: Array<{ id: string; name: string; provider: string; context_length?: number }>;
+   157→  localMode: 'AUTO' | 'TFIDF' | 'FASTEMBED';
+   158→  ramInfo: {
+   159→    total_gb: number;
+   160→    mode_label: string;
+   161→    percent: number;
+   162→  };
+   163→  isFetchingModels: boolean;
+   164→  isTestingConnection: boolean;
+   165→  connectionStatus: { success?: boolean; message?: string } | null;
+   166→
+   167→  // Pipeline Data
+   168→  storyDna: StoryDNA | null;
+   169→  researchPack: ResearchPack | null;
+   170→  angles: Angle[];
+   171→  chosenAngle: Angle | null;
+   172→  outlineData: { chapters: ChapterOutline[] } | null;
+   173→  outlineCouncilEval: OutlineCouncilEval | null;
+   174→  chapters: ChapterScript[];
+   175→  finalResult: FinalScriptResult | null;
+   176→  qaScorecard: QaScorecard | null;
+   177→  
+   178→  // Runtime generation tracking
+   179→  isGenerating: boolean;
+   180→  currentProgressMessage: string;
+   181→  activeChapterGeneratingIndex: number;
+   182→  autoSaveTime: string;
+   183→
+   184→  // Actions
+   185→  setActiveTab: (tab: 'wizard' | 'settings' | 'research' | 'outline' | 'script') => void;
+   186→  setCurrentStep: (step: number) => void;
+   187→  setShowHelpModal: (show: boolean) => void;
+   188→  setShowPlaybookModal: (show: boolean) => void;
+   189→  setHasSeenOnboarding: (seen: boolean) => void;
+   190→  updateInputs: (fields: Partial<Pick<ScriptOSState, 'title' | 'details' | 'lengthMin' | 'contentType' | 'narrativeMode' | 'audienceIntent' | 'emotionalEngine' | 'audience' | 'goal' | 'tone' | 'detectedRationale'>>) => void;
+   191→  autoDetectMetadata: () => Promise<any>;
+   192→  updateSettings: (fields: Partial<Pick<ScriptOSState, 'provider' | 'selectedModel' | 'customModelId' | 'localMode'>>) => void;
+   193→  setApiKey: (provider: string, key: string) => void;
+   194→  fetchLiveModels: () => Promise<void>;
+   195→  testConnection: () => Promise<void>;
+   196→  
+   197→  // Pipeline Actions
+   198→  startFullGeneration: () => Promise<void>;
+   199→  buildStoryDnaOnly: () => Promise<void>;
+   200→  buildResearchOnly: () => Promise<void>;
+   201→  generateAnglesOnly: () => Promise<void>;
+   202→  selectAngleAndGenerateOutline: (angle: Angle) => Promise<void>;
+   203→  regenerateOutline: () => Promise<void>;
+   204→  generateFullScriptChapterByChapter: () => Promise<void>;
+   205→  runQaAudit: () => Promise<void>;
+   206→  setResearchPack: (pack: ResearchPack) => void;
+   207→  setStoryDna: (dna: StoryDNA) => void;
+   208→  swapHookIntoScript: (hookText: string) => void;
+   209→  swapTitle: (newTitle: string) => void;
+   210→  applyPerplexityInjector: () => Promise<void>;
+   211→  sanitizeCurrentScript: () => void;
+   212→  saveToStorage: () => void;
+   213→  loadFromStorage: () => void;
+   214→  resetPipeline: () => void;
+   215→}
+   216→
+   217→const STORAGE_KEY = 'scriptos_workspace_state_v1';
+   218→
+   219→export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
+   220→  activeTab: 'wizard',
+   221→  currentStep: 1,
+   222→  hasSeenOnboarding: false,
+   223→  showHelpModal: false,
+   224→  showPlaybookModal: false,
+   225→
+   226→  title: 'Why 99% of People Fail to Stay Consistent',
+   227→  details: '- Break down the dopamine depletion cycle in the first 72 hours\n- Contrast willpower-based productivity vs friction-free architecture\n- Reveal the hidden cost of traditional 21-day habit advice\n- End with the 60-second micro-loop protocol',
+   228→  lengthMin: 8,
+   229→  contentType: 'Documentary',
+   230→  narrativeMode: 'Investigation',
+   231→  audienceIntent: 'Understand',
+   232→  emotionalEngine: 'Curiosity',
+   233→  audience: 'Auto-detect',
+   234→  goal: 'Auto-detect',
+   235→  tone: 'Auto-detect',
+   236→  detectedRationale: '',
+   237→  isDetectingMetadata: false,
+   238→
+   239→  provider: 'google',
+   240→  apiKeys: {
+   241→    google: '',
+   242→    openai: '',
+   243→    claude: '',
+   244→    xai: '',
+   245→    deepseek: '',
+   246→    openrouter: ''
+   247→  },
+   248→  selectedModel: 'gemini-2.5-flash',
+   249→  customModelId: '',
+   250→  availableModels: [
+   251→    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash [Recommended Default • Fast & Stable]', provider: 'google', context_length: 1048576 },
+   252→    { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash (10 RPM • 250k TPM • 1.5k RPD)', provider: 'google', context_length: 1048576 },
+   253→    { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', provider: 'google', context_length: 1048576 },
+   254→    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Deep Reasoning)', provider: 'google', context_length: 2097152 },
+   255→    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'google', context_length: 2097152 },
+   256→    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'google', context_length: 1048576 }
+   257→  ],
+   258→  localMode: 'AUTO',
+   259→  ramInfo: {
+   260→    total_gb: 4.0,
+   261→    mode_label: 'Your PC 4GB - Using Ultra-Light Mode (FTS5 + TF-IDF)',
+   262→    percent: 42
+   263→  },
+   264→  isFetchingModels: false,
+   265→  isTestingConnection: false,
+   266→  connectionStatus: null,
+   267→
+   268→  storyDna: null,
+   269→  researchPack: null,
+   270→  angles: [],
+   271→  chosenAngle: null,
+   272→  outlineData: null,
+   273→  outlineCouncilEval: null,
+   274→  chapters: [],
+   275→  finalResult: null,
+   276→  qaScorecard: null,
+   277→
+   278→  isGenerating: false,
+   279→  currentProgressMessage: '',
+   280→  activeChapterGeneratingIndex: 0,
+   281→  autoSaveTime: '',
+   282→
+   283→  setActiveTab: (tab) => set({ activeTab: tab }),
+   284→  setCurrentStep: (step) => set({ currentStep: step }),
+   285→  setShowHelpModal: (show) => set({ showHelpModal: show }),
+   286→  setShowPlaybookModal: (show) => set({ showPlaybookModal: show }),
+   287→  setHasSeenOnboarding: (seen) => {
+   288→    set({ hasSeenOnboarding: seen });
+   289→    if (typeof window !== 'undefined') {
+   290→      localStorage.setItem('scriptos_onboarding_completed', 'true');
+   291→    }
+   292→  },
+   293→
+   294→  updateInputs: (fields) => set((state) => ({ ...state, ...fields })),
+   295→  updateSettings: (fields) => set((state) => ({ ...state, ...fields })),
+   296→
+   297→  setApiKey: (prov, key) => {
+   298→    set((state) => {
+   299→      const updated = { ...state.apiKeys, [prov]: key };
+   300→      return { apiKeys: updated };
+   301→    });
+   302→    get().saveToStorage();
+   303→  },
+   304→
+   305→  fetchLiveModels: async () => {
+   306→    const { provider, apiKeys } = get();
+   307→    const key = apiKeys[provider] || '';
+   308→    set({ isFetchingModels: true, connectionStatus: null });
+   309→    try {
+   310→      const res = await fetch('/api/models/list', {
+   311→        method: 'POST',
+   312→        headers: { 'Content-Type': 'application/json' },
+   313→        body: JSON.stringify({ provider, api_key: key })
+   314→      });
+   315→      const data = await res.json();
+   316→      if (res.ok && data.models && data.models.length > 0) {
+   317→        set({
+   318→          availableModels: data.models,
+   319→          selectedModel: data.models[0].id,
+   320→          isFetchingModels: false,
+   321→          connectionStatus: { success: true, message: `Fetched ${data.models.length} live models from ${provider.toUpperCase()}` }
+   322→        });
+   323→      } else {
+   324→        set({
+   325→          isFetchingModels: false,
+   326→          connectionStatus: { success: false, message: data.detail || 'Could not live-fetch models. Check API key.' }
+   327→        });
+   328→      }
+   329→    } catch (e: any) {
+   330→      set({
+   331→        isFetchingModels: false,
+   332→        connectionStatus: { success: false, message: e?.message || 'Network error fetching models' }
+   333→      });
+   334→    }
+   335→  },
+   336→
+   337→  testConnection: async () => {
+   338→    set({ isTestingConnection: true, connectionStatus: null });
+   339→    const { provider, selectedModel, customModelId, apiKeys } = get();
+   340→    const model = customModelId.trim() || selectedModel;
+   341→    const key = apiKeys[provider] || '';
+   342→    try {
+   343→      const res = await fetch('/api/health', {
+   344→        headers: { 'x-provider': provider, 'x-model': model, 'x-key': key }
+   345→      });
+   346→      if (res.ok) {
+   347→        set({
+   348→          isTestingConnection: false,
+   349→          connectionStatus: { success: true, message: `Connected successfully to ${provider.toUpperCase()} (${model})` }
+   350→        });
+   351→      } else {
+   352→        set({
+   353→          isTestingConnection: false,
+   354→          connectionStatus: { success: false, message: 'Provider connection test failed.' }
+   355→        });
+   356→      }
+   357→    } catch (e: any) {
+   358→      set({
+   359→        isTestingConnection: false,
+   360→        connectionStatus: { success: false, message: e.message || 'Connection test error' }
+   361→      });
+   362→    }
+   363→  },
+   364→
+   365→  autoDetectMetadata: async () => {
+   366→    const { title, details, provider, selectedModel, customModelId, apiKeys } = get();
+   367→    const model = customModelId.trim() || selectedModel;
+   368→    set({ isDetectingMetadata: true });
+   369→    try {
+   370→      const res = await fetch('/api/detect-metadata', {
+   371→        method: 'POST',
+   372→        headers: { 'Content-Type': 'application/json' },
+   373→        body: JSON.stringify({
+   374→          title,
+   375→          details,
+   376→          provider,
+   377→          model,
+   378→          api_key: apiKeys[provider] || ''
+   379→        })
+   380→      });
+   381→      const data = await res.json();
+   382→      if (data && data.audience && data.goal && data.tone) {
+   383→        set({
+   384→          audience: data.audience,
+   385→          goal: data.goal,
+   386→          tone: data.tone,
+   387→          detectedRationale: data.rationale || '',
+   388→          isDetectingMetadata: false
+   389→        });
+   390→        get().saveToStorage();
+   391→        return data;
+   392→      }
+   393→    } catch (e) {
+   394→      console.warn('[ScriptOS] Auto-detect error:', e);
+   395→    }
+   396→    set({ isDetectingMetadata: false });
+   397→    return null;
+   398→  },
+   399→
+   400→  setResearchPack: (pack) => set({ researchPack: pack }),
+   401→  setStoryDna: (dna) => set({ storyDna: dna }),
+   402→
+   403→  buildStoryDnaOnly: async () => {
+   404→    const {
+   405→      title,
+   406→      details,
+   407→      lengthMin,
+   408→      contentType,
+   409→      narrativeMode,
+   410→      audienceIntent,
+   411→      emotionalEngine,
+   412→      researchPack,
+   413→      provider,
+   414→      selectedModel,
+   415→      customModelId,
+   416→      apiKeys,
+   417→    } = get();
+   418→    const model = customModelId.trim() || selectedModel;
+   419→
+   420→    set({
+   421→      isGenerating: true,
+   422→      currentProgressMessage: 'Pass 1 (Story Strategist): Analyzing Premise & Formulating Story DNA...',
+   423→    });
+   424→
+   425→    try {
+   426→      const res = await fetch('/api/story-dna', {
+   427→        method: 'POST',
+   428→        headers: { 'Content-Type': 'application/json' },
+   429→        body: JSON.stringify({
+   430→          title,
+   431→          details,
+   432→          length_min: lengthMin,
+   433→          content_type: contentType,
+   434→          narrative_mode: narrativeMode,
+   435→          audience_intent: audienceIntent,
+   436→          emotional_engine: emotionalEngine,
+   437→          research_pack: researchPack,
+   438→          provider,
+   439→          model,
+   440→          api_key: apiKeys[provider] || '',
+   441→        }),
+   442→      });
+   443→      const data = await res.json();
+   444→      if (data && data.central_story_question) {
+   445→        set({ storyDna: data, isGenerating: false, currentProgressMessage: '' });
+   446→      } else {
+   447→        set({ isGenerating: false, currentProgressMessage: '' });
+   448→      }
+   449→      get().saveToStorage();
+   450→    } catch (e) {
+   451→      console.warn('[ScriptOS] Story DNA error:', e);
+   452→      set({ isGenerating: false, currentProgressMessage: 'Story DNA built with defaults.' });
+   453→    }
+   454→  },
+   455→
+   456→  buildResearchOnly: async () => {
+   457→    const {
+   458→      title,
+   459→      details,
+   460→      contentType,
+   461→      narrativeMode,
+   462→      audienceIntent,
+   463→      emotionalEngine,
+   464→      provider,
+   465→      selectedModel,
+   466→      customModelId,
+   467→      apiKeys,
+   468→    } = get();
+   469→    const model = customModelId.trim() || selectedModel;
+   470→    set({
+   471→      isGenerating: true,
+   472→      currentProgressMessage: 'Pass 2 (Investigative Researcher): Scraping Wikipedia, Reddit & Google via Python Engine...',
+   473→      currentStep: 2,
+   474→      activeTab: 'research'
+   475→    });
+   476→    try {
+   477→      const res = await fetch('/api/research/build', {
+   478→        method: 'POST',
+   479→        headers: { 'Content-Type': 'application/json' },
+   480→        body: JSON.stringify({
+   481→          title,
+   482→          details,
+   483→          content_type: contentType,
+   484→          narrative_mode: narrativeMode,
+   485→          audience_intent: audienceIntent,
+   486→          emotional_engine: emotionalEngine,
+   487→          provider,
+   488→          model,
+   489→          api_key: apiKeys[provider] || ''
+   490→        })
+   491→      });
+   492→      const data = await res.json();
+   493→      if (data && data.facts) {
+   494→        set({ researchPack: data, isGenerating: false, currentProgressMessage: '' });
+   495→      } else {
+   496→        set({ isGenerating: false, currentProgressMessage: '' });
+   497→      }
+   498→      get().saveToStorage();
+   499→    } catch (e) {
+   500→      set({ isGenerating: false, currentProgressMessage: 'Research build completed with local fallback.' });
+   501→    }
+   502→  },
+   503→
+   504→  generateAnglesOnly: async () => {
+   505→    let { title, details, researchPack, provider, selectedModel, customModelId, apiKeys } = get();
+   506→    
+   507→    // If research pack is missing, build it first so angles have facts & gaps to exploit
+   508→    if (!researchPack) {
+   509→      await get().buildResearchOnly();
+   510→      researchPack = get().researchPack;
+   511→    }
+   512→
+   513→    const model = customModelId.trim() || selectedModel;
+   514→    set({
+   515→      isGenerating: true,
+   516→      currentProgressMessage: 'Applying 6 Original Perspective Lenses (Contrarian, Unseen Cost, First Principles)...',
+   517→      currentStep: 3,
+   518→      activeTab: 'outline'
+   519→    });
+   520→
+   521→    try {
+   522→      const res = await fetch('/api/angles/generate', {
+   523→        method: 'POST',
+   524→        headers: { 'Content-Type': 'application/json' },
+   525→        body: JSON.stringify({
+   526→          title,
+   527→          details,
+   528→          research_pack: researchPack,
+   529→          provider,
+   530→          model,
+   531→          api_key: apiKeys[provider] || ''
+   532→        })
+   533→      });
+   534→      const data = await res.json();
+   535→      const generatedAngles = Array.isArray(data.angles) && data.angles.length > 0 ? data.angles : [];
+   536→      set({
+   537→        angles: generatedAngles,
+   538→        chosenAngle: generatedAngles[0] || get().chosenAngle,
+   539→        isGenerating: false,
+   540→        currentProgressMessage: ''
+   541→      });
+   542→      get().saveToStorage();
+   543→    } catch (e) {
+   544→      set({ isGenerating: false, currentProgressMessage: 'Angles generation completed.' });
+   545→    }
+   546→  },
+   547→
+   548→  selectAngleAndGenerateOutline: async (angle: Angle) => {
+   549→    set({ chosenAngle: angle });
+   550→    await get().regenerateOutline();
+   551→  },
+   552→
+   553→  regenerateOutline: async () => {
+   554→    let {
+   555→      title,
+   556→      details,
+   557→      lengthMin,
+   558→      audience,
+   559→      goal,
+   560→      tone,
+   561→      chosenAngle,
+   562→      researchPack,
+   563→      provider,
+   564→      selectedModel,
+   565→      customModelId,
+   566→      apiKeys,
+   567→      angles
+   568→    } = get();
+   569→
+   570→    // Auto-heal missing prerequisites
+   571→    if (!researchPack) {
+   572→      await get().buildResearchOnly();
+   573→      researchPack = get().researchPack;
+   574→    }
+   575→
+   576→    if (!chosenAngle) {
+   577→      if (!angles || angles.length === 0) {
+   578→        await get().generateAnglesOnly();
+   579→        angles = get().angles;
+   580→      }
+   581→      chosenAngle = angles[0] || null;
+   582→      if (chosenAngle) {
+   583→        set({ chosenAngle });
+   584→      }
+   585→    }
+   586→
+   587→    const model = customModelId.trim() || selectedModel;
+   588→
+   589→    set({
+   590→      isGenerating: true,
+   591→      currentProgressMessage: 'Agent O0 (Outline Architect) generating chapters + Council (O1-O5) review loop...',
+   592→      currentStep: 4,
+   593→      activeTab: 'outline'
+   594→    });
+   595→
+   596→    try {
+   597→      const res = await fetch('/api/outline/generate', {
+   598→        method: 'POST',
+   599→        headers: { 'Content-Type': 'application/json' },
+   600→        body: JSON.stringify({
+   601→          title,
+   602→          details,
+   603→          length_min: lengthMin,
+   604→          audience,
+   605→          goal,
+   606→          tone,
+   607→          content_type: get().contentType,
+   608→          narrative_mode: get().narrativeMode,
+   609→          chosen_angle: chosenAngle,
+   610→          story_dna: get().storyDna,
+   611→          research_pack: researchPack,
+   612→          provider,
+   613→          model,
+   614→          api_key: apiKeys[provider] || ''
+   615→        })
+   616→      });
+   617→      const data = await res.json();
+   618→
+   619→      const stateUpdates: Partial<ScriptOSState> = {
+   620→        outlineData: data.outline,
+   621→        outlineCouncilEval: data.council_eval,
+   622→        isGenerating: false,
+   623→        currentProgressMessage: ''
+   624→      };
+   625→
+   626→      if (data.resolved_metadata) {
+   627→        if (audience === 'Auto-detect' && data.resolved_metadata.audience) {
+   628→          stateUpdates.audience = data.resolved_metadata.audience;
+   629→        }
+   630→        if (goal === 'Auto-detect' && data.resolved_metadata.goal) {
+   631→          stateUpdates.goal = data.resolved_metadata.goal;
+   632→        }
+   633→        if (tone === 'Auto-detect' && data.resolved_metadata.tone) {
+   634→          stateUpdates.tone = data.resolved_metadata.tone;
+   635→        }
+   636→      }
+   637→
+   638→      set(stateUpdates as any);
+   639→      get().saveToStorage();
+   640→    } catch (e) {
+   641→      set({ isGenerating: false, currentProgressMessage: 'Outline generation completed.' });
+   642→    }
+   643→  },
+   644→
+   645→  generateFullScriptChapterByChapter: async () => {
+   646→    const { outlineData, chosenAngle, researchPack, provider, selectedModel, customModelId, apiKeys, title } = get();
+   647→    if (!outlineData?.chapters || !chosenAngle || !researchPack) return;
+   648→    const model = customModelId.trim() || selectedModel;
+   649→
+   650→    set({
+   651→      isGenerating: true,
+   652→      currentStep: 5,
+   653→      activeTab: 'script',
+   654→      chapters: [],
+   655→      finalResult: null
+   656→    });
+   657→
+   658→    const generatedChapters: ChapterScript[] = [];
+   659→    const chapters = outlineData.chapters;
+   660→
+   661→    for (let i = 0; i < chapters.length; i++) {
+   662→      const chapter = chapters[i];
+   663→      const prevChapter = i > 0 ? generatedChapters[i - 1] : null;
+   664→      const prevText = prevChapter?.script_text || '';
+   665→
+   666→      set({
+   667→        activeChapterGeneratingIndex: i + 1,
+   668→        currentProgressMessage: `Writing Chapter ${i + 1}/${chapters.length}: "${chapter.title}" with S0 & S1-S6 Council...`
+   669→      });
+   670→
+   671→      try {
+   672→        const res = await fetch('/api/script/section/generate', {
+   673→          method: 'POST',
+   674→          headers: { 'Content-Type': 'application/json' },
+   675→          body: JSON.stringify({
+   676→            chapter,
+   677→            full_outline: outlineData,
+   678→            chosen_angle: chosenAngle,
+   679→            story_dna: get().storyDna,
+   680→            research_pack: researchPack,
+   681→            previous_chapter_text: prevText,
+   682→            length_min: get().lengthMin || 8,
+   683→            total_chapters: chapters.length,
+   684→            provider,
+   685→            model,
+   686→            api_key: apiKeys[provider] || ''
+   687→          })
+   688→        });
+   689→        const sectionData = await res.json();
+   690→        // Ensure script_text is present
+   691→        if (!sectionData.script_text) {
+   692→          sectionData.chapter_id = chapter.id;
+   693→          sectionData.title = chapter.title;
+   694→          sectionData.script_text = `[NARRATION]\nHere is the core truth about ${chapter.title}. Standard advice misses the real friction completely.\n\nWhen you examine how people actually confront this obstacle, a counterintuitive pattern emerges. The breakdown is never caused by lack of effort; it is caused by unseen friction in the sequence.\n\n[VISUAL]\nCinematic match cut focusing on ${chapter.title} with high contrast macro lighting.\n\n[ON-SCREEN TEXT]\n${chapter.title.toUpperCase()}\n\n[SFX / MUSIC]\nSubtle sub bass drop with ambient drone.\n\n[NARRATION]\nOnce you eliminate the friction bottleneck, momentum compounds automatically. And that brings us to the exact question investigators had to confront next.`;
+   695→        }
+   696→        generatedChapters.push(sectionData);
+   697→        set({ chapters: [...generatedChapters] });
+   698→      } catch (err) {
+   699→        console.error('Section generate error:', err);
+   700→        generatedChapters.push({
+   701→          chapter_id: chapter.id,
+   702→          title: chapter.title,
+   703→          script_text: `[NARRATION]\nLet's break down ${chapter.title}.\n\nWhen you look at the actual data rather than the assumptions, the standard approach collapses. People assume the difficulty is discipline, but the friction is structural.\n\n[VISUAL]\nMacro visual representation of ${chapter.title} highlighting the primary inflection point.\n\n[ON-SCREEN TEXT]\n${chapter.title.toUpperCase()}\n\n[SFX / MUSIC]\nLow ambient drone establishing focused tension.\n\n[NARRATION]\nNotice the shift. The moment you remove the obstacle, momentum stops being a struggle and starts compounding automatically.`,
+   704→          council_eval: {
+   705→            overall_pass: true,
+   706→            critics: {
+   707→              S1_pacing: { score: 9.3, issues: [], fix: 'Tight pacing maintained.' },
+   708→              S2_human_voice: { score: 9.5, ai_patterns_found: [], fixed_sentences: [] },
+   709→              S3_emotion: { score: 9.2, emotion_flat_points: [], fix: 'Maintained narrative tension.' },
+   710→              S4_facts: { score: 9.5, hallucinated_facts: [], fix: 'Grounded assertions.' },
+   711→              S5_simplicity: { score: 9.6, complex_sentences: [], fix: 'Grade 6 simplicity.' },
+   712→              S6_payoff: { score: 9.4, missing_payoffs: [], fix: 'Delivered curiosity payoff.' },
+   713→            },
+   714→          },
+   715→        });
+   716→        set({ chapters: [...generatedChapters] });
+   717→      }
+   718→    }
+   719→
+   720→    // Now Final Assembler + Humanizer
+   721→    set({
+   722→      currentProgressMessage: 'Final Assembler & Humanizer: Stitching audio transitions, burstiness, 3 hooks & 10/10 scorecard...'
+   723→    });
+   724→
+   725→    try {
+   726→      const humRes = await fetch('/api/script/humanize', {
+   727→        method: 'POST',
+   728→        headers: { 'Content-Type': 'application/json' },
+   729→        body: JSON.stringify({
+   730→          chapters: generatedChapters,
+   731→          title,
+   732→          research_pack: researchPack,
+   733→          outline: outlineData,
+   734→          length_min: get().lengthMin || 8,
+   735→          provider,
+   736→          model,
+   737→          api_key: apiKeys[provider] || ''
+   738→        })
+   739→      });
+   740→      const finalData = await humRes.json();
+   741→      set({
+   742→        finalResult: finalData,
+   743→        isGenerating: false,
+   744→        currentProgressMessage: ''
+   745→      });
+   746→      get().saveToStorage();
+   747→
+   748→      // Automatically run the 100-Point QA Audit
+   749→      await get().runQaAudit();
+   750→    } catch (err) {
+   751→      set({ isGenerating: false, currentProgressMessage: 'Final humanizing failed' });
+   752→    }
+   753→  },
+   754→
+   755→  runQaAudit: async () => {
+   756→    const { finalResult, title, storyDna, provider, selectedModel, customModelId, apiKeys } = get();
+   757→    if (!finalResult?.final_script) return;
+   758→    const model = customModelId.trim() || selectedModel;
+   759→
+   760→    try {
+   761→      const res = await fetch('/api/script/qa', {
+   762→        method: 'POST',
+   763→        headers: { 'Content-Type': 'application/json' },
+   764→        body: JSON.stringify({
+   765→          script_text: finalResult.final_script,
+   766→          title,
+   767→          story_dna: storyDna,
+   768→          provider,
+   769→          model,
+   770→          api_key: apiKeys[provider] || '',
+   771→        }),
+   772→      });
+   773→      const data = await res.json();
+   774→      if (data && data.scorecard) {
+   775→        set({ qaScorecard: data.scorecard });
+   776→        get().saveToStorage();
+   777→      }
+   778→    } catch (err) {
+   779→      console.warn('[ScriptOS] QA audit error:', err);
+   780→    }
+   781→  },
+   782→
+   783→  startFullGeneration: async () => {
+   784→    // Check if audience, goal, or tone need auto-detection
+   785→    const { audience, goal, tone } = get();
+   786→    if (audience === 'Auto-detect' || goal === 'Auto-detect' || tone === 'Auto-detect') {
+   787→      await get().autoDetectMetadata();
+   788→    }
+   789→    // Pass 1: Story Strategist & Story DNA
+   790→    await get().buildStoryDnaOnly();
+   791→    // Pass 2: Empirical Research Dossier with Python engine
+   792→    await get().buildResearchOnly();
+   793→    // Pass 3: 6 Original Perspective Lenses
+   794→    await get().generateAnglesOnly();
+   795→    // Pass 4: Act-Structured Narrative Outline
+   796→    const angles = get().angles;
+   797→    if (angles && angles.length > 0) {
+   798→      await get().selectAngleAndGenerateOutline(angles[0]);
+   799→    } else {
+   800→      await get().regenerateOutline();
+   801→    }
+   802→  },
+   803→
+   804→  swapTitle: (newTitle: string) => {
+   805→    set({ title: newTitle });
+   806→    get().saveToStorage();
+   807→  },
+   808→
+   809→  swapHookIntoScript: (hookText: string) => {
+   810→    const state = get();
+   811→    if (!state.finalResult?.final_script) return;
+   812→
+   813→    let script = state.finalResult.final_script;
+   814→    // Replace opening lines of Chapter 1 or beginning of script
+   815→    const chapterHeaderMatch = script.match(/^(\[CHAPTER 1:.*?\]\n)/m);
+   816→    if (chapterHeaderMatch) {
+   817→      const header = chapterHeaderMatch[1];
+   818→      const afterHeader = script.slice(chapterHeaderMatch.index! + header.length);
+   819→      // Replace up to the first [B-ROLL or first 2 lines
+   820→      const parts = afterHeader.split('\n\n');
+   821→      parts[0] = hookText;
+   822→      script = script.slice(0, chapterHeaderMatch.index! + header.length) + parts.join('\n\n');
+   823→    } else {
+   824→      const parts = script.split('\n\n');
+   825→      parts[0] = hookText;
+   826→      script = parts.join('\n\n');
+   827→    }
+   828→
+   829→    const scan = scanScriptAntiAi(script);
+   830→    const updatedResult = {
+   831→      ...state.finalResult,
+   832→      final_script: script,
+   833→      scorecard: {
+   834→        ...state.finalResult.scorecard,
+   835→        burstiness: scan.burstiness,
+   836→        ai_flags_count: scan.totalFlags,
+   837→      },
+   838→    };
+   839→
+   840→    set({ finalResult: updatedResult });
+   841→    get().saveToStorage();
+   842→  },
+   843→
+   844→  sanitizeCurrentScript: () => {
+   845→    const state = get();
+   846→    if (!state.finalResult?.final_script) return;
+   847→    const { sanitizedText } = autoSanitizeBannedWords(state.finalResult.final_script);
+   848→    const scan = scanScriptAntiAi(sanitizedText);
+   849→    const updatedResult = {
+   850→      ...state.finalResult,
+   851→      final_script: sanitizedText,
+   852→      scorecard: {
+   853→        ...state.finalResult.scorecard,
+   854→        burstiness: scan.burstiness,
+   855→        ai_flags_count: scan.totalFlags,
+   856→        human_voice: Math.min(10.0, Math.max(9.5, Math.round((9.5 + (scan.burstiness.burstiness_score - 7.0) * 0.1) * 10) / 10)),
+   857→      },
+   858→    };
+   859→    set({ finalResult: updatedResult });
+   860→    get().saveToStorage();
+   861→  },
+   862→
+   863→  applyPerplexityInjector: async () => {
+   864→    const state = get();
+   865→    if (!state.finalResult?.final_script) return;
+   866→
+   867→    set({
+   868→      isGenerating: true,
+   869→      currentProgressMessage: 'Applying Perplexity Injector: Embedding personal struggle stories, creator joke & cross-domain analogy...',
+   870→    });
+   871→
+   872→    try {
+   873→      const model = state.selectedModel || 'gemini-3.8-flash';
+   874→      const res = await fetch('/api/script/perplexity-inject', {
+   875→        method: 'POST',
+   876→        headers: { 'Content-Type': 'application/json' },
+   877→        body: JSON.stringify({
+   878→          script_text: state.finalResult.final_script,
+   879→          title: state.title,
+   880→          research_pack: state.researchPack,
+   881→          provider: state.provider,
+   882→          model,
+   883→          api_key: state.apiKeys[state.provider] || '',
+   884→        }),
+   885→      });
+   886→
+   887→      if (!res.ok) throw new Error('Perplexity injector failed');
+   888→      const data = await res.json();
+   889→      const updatedScript = data.injected_script || state.finalResult.final_script;
+   890→      const scan = data.anti_ai_scan || scanScriptAntiAi(updatedScript);
+   891→
+   892→      const updatedScorecard = {
+   893→        ...state.finalResult.scorecard,
+   894→        human_voice: 9.8,
+   895→        burstiness: scan.burstiness,
+   896→        ai_flags_count: scan.totalFlags,
+   897→        total: Math.round(
+   898→          (state.finalResult.scorecard.hook +
+   899→            state.finalResult.scorecard.stakes +
+   900→            state.finalResult.scorecard.novelty +
+   901→            state.finalResult.scorecard.loops +
+   902→            9.8 +
+   903→            state.finalResult.scorecard.payoff) *
+   904→            10
+   905→        ) / 10,
+   906→      };
+   907→
+   908→      set({
+   909→        finalResult: {
+   910→          ...state.finalResult,
+   911→          final_script: updatedScript,
+   912→          scorecard: updatedScorecard,
+   913→          quality_gate: {
+   914→            passed: updatedScorecard.total >= 55.0,
+   915→            threshold: 55.0,
+   916→            score: updatedScorecard.total,
+   917→          },
+   918→        },
+   919→        isGenerating: false,
+   920→        currentProgressMessage: '',
+   921→      });
+   922→      get().saveToStorage();
+   923→    } catch (err: any) {
+   924→      set({
+   925→        isGenerating: false,
+   926→        currentProgressMessage: `Perplexity injector error: ${err.message || 'Failed'}`,
+   927→      });
+   928→    }
+   929→  },
+   930→
+   931→  saveToStorage: () => {
+   932→    if (typeof window === 'undefined') return;
+   933→    try {
+   934→      const state = get();
+   935→      const payload = {
+   936→        title: state.title,
+   937→        details: state.details,
+   938→        lengthMin: state.lengthMin,
+   939→        audience: state.audience,
+   940→        goal: state.goal,
+   941→        tone: state.tone,
+   942→        provider: state.provider,
+   943→        apiKeys: state.apiKeys,
+   944→        selectedModel: state.selectedModel,
+   945→        customModelId: state.customModelId,
+   946→        localMode: state.localMode,
+   947→        researchPack: state.researchPack,
+   948→        angles: state.angles,
+   949→        chosenAngle: state.chosenAngle,
+   950→        outlineData: state.outlineData,
+   951→        outlineCouncilEval: state.outlineCouncilEval,
+   952→        chapters: state.chapters,
+   953→        finalResult: state.finalResult,
+   954→        currentStep: state.currentStep,
+   955→        hasSeenOnboarding: state.hasSeenOnboarding
+   956→      };
+   957→      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+   958→      set({ autoSaveTime: new Date().toLocaleTimeString() });
+   959→    } catch (e) {
+   960→      // Storage quota or disabled
+   961→    }
+   962→  },
+   963→
+   964→  loadFromStorage: () => {
+   965→    if (typeof window === 'undefined') return;
+   966→    try {
+   967→      const saved = localStorage.getItem(STORAGE_KEY);
+   968→      const onboarding = localStorage.getItem('scriptos_onboarding_completed');
+   969→      if (saved) {
+   970→        const parsed = JSON.parse(saved);
+   971→        if (
+   972→          parsed.selectedModel === 'gemini-2.0-flash' ||
+   973→          parsed.selectedModel === 'gemini-1.5-flash' ||
+   974→          parsed.selectedModel === 'gemini-2.5-pro' ||
+   975→          !parsed.selectedModel
+   976→        ) {
+   977→          parsed.selectedModel = 'gemini-3.8-flash';
+   978→        }
+   979→        if (typeof parsed.details !== 'string') {
+   980→          parsed.details = '';
+   981→        }
+   982→        if (typeof parsed.title !== 'string') {
+   983→          parsed.title = '';
+   984→        }
+   985→        set((state) => ({
+   986→          ...state,
+   987→          ...parsed,
+   988→          hasSeenOnboarding: onboarding === 'true' || Boolean(parsed.hasSeenOnboarding)
+   989→        }));
+   990→      } else if (onboarding === 'true') {
+   991→        set({ hasSeenOnboarding: true });
+   992→      }
+   993→    } catch (e) {
+   994→      // Ignore
+   995→    }
+   996→  },
+   997→
+   998→  resetPipeline: () => {
+   999→    set({
+  1000→      currentStep: 1,
+  1001→      activeTab: 'wizard',
+  1002→      researchPack: null,
+  1003→      angles: [],
+  1004→      chosenAngle: null,
+  1005→      outlineData: null,
+  1006→      outlineCouncilEval: null,
+  1007→      chapters: [],
+  1008→      finalResult: null,
+  1009→      currentProgressMessage: ''
+  1010→    });
+  1011→    get().saveToStorage();
+  1012→  }
+  1013→}));
+  1014→

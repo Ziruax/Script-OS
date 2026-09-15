@@ -1,12 +1,25 @@
-import type { NextConfig } from "next";
+import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  output: "standalone",
-  /* config options here */
+  reactStrictMode: true,
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
-  reactStrictMode: false,
+  // Allow access to remote image placeholder.
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'picsum.photos',
+        port: '',
+        pathname: '/**',
+      },
+    ],
+  },
+  // Allow the sandbox preview origin to access Next.js dev resources without warnings.
+  allowedDevOrigins: ['*.space-z.ai', '*.space-z.ai:443'],
+  output: 'standalone',
+  transpilePackages: ['motion'],
 };
 
 export default nextConfig;
