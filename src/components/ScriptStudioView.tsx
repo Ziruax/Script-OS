@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useScriptOSStore } from '@/lib/store';
+import { useToast } from '@/components/Toast';
 import {
   Film,
   Sparkles,
@@ -62,6 +63,7 @@ export default function ScriptStudioView() {
   const [swappedTitleMsg, setSwappedTitleMsg] = useState<string | null>(null);
 
   const totalChapters = outlineData?.chapters?.length || 3;
+  const { toast } = useToast();
 
   // Real-time local anti-AI scan if script is available
   const liveAntiAiScan = finalResult?.final_script ? scanScriptAntiAi(finalResult.final_script) : null;
@@ -242,6 +244,7 @@ export default function ScriptStudioView() {
     navigator.clipboard.writeText(text);
     setCopiedScript(true);
     setTimeout(() => setCopiedScript(false), 2000);
+    toast('Script copied', 'success', 'Full script in clipboard');
   };
 
   const handleCopyCleanNarration = () => {
@@ -250,12 +253,14 @@ export default function ScriptStudioView() {
     navigator.clipboard.writeText(clean);
     setCopiedCleanNarration(true);
     setTimeout(() => setCopiedCleanNarration(false), 2000);
+    toast('Voiceover copied', 'success', 'Narration only — ready for TTS');
   };
 
   const handleCopyHook = (text: string, idx: number) => {
     navigator.clipboard.writeText(text);
     setCopiedHookIdx(idx);
     setTimeout(() => setCopiedHookIdx(null), 2000);
+    toast(`Hook ${idx + 1} copied`, 'success');
   };
 
   const downloadFile = (filename: string, content: string, mime: string) => {
@@ -266,6 +271,53 @@ export default function ScriptStudioView() {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+    toast('File downloaded', 'success', filename);
+  };
+
+  // Open a clean print-friendly window the user can "Save as PDF" from the browser print dialog
+  const downloadAsPDF = () => {
+    if (!finalResult?.final_script) return;
+    const safeTitle = (title || 'ScriptOS Script').replace(/[<>]/g, '');
+    const escaped = finalResult.final_script
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    // Color-code the bracketed cues in the printed output
+    const htmlBody = escaped
+      .replace(/\[NARRATION\]/g, '<span style="color:#059669;font-weight:700">[NARRATION]</span>')
+      .replace(/\[VISUAL[^\]]*\]/g, (m) => `<span style="color:#2563eb">${m}</span>`)
+      .replace(/\[B-ROLL[^\]]*\]/g, (m) => `<span style="color:#2563eb">${m}</span>`)
+      .replace(/\[ON-SCREEN TEXT[^\]]*\]/g, (m) => `<span style="color:#d97706">${m}</span>`)
+      .replace(/\[TEXT ON SCREEN[^\]]*\]/g, (m) => `<span style="color:#d97706">${m}</span>`)
+      .replace(/\[SFX[^\]]*\]/g, (m) => `<span style="color:#7c3aed">${m}</span>`)
+      .replace(/\[MUSIC[^\]]*\]/g, (m) => `<span style="color:#7c3aed">${m}</span>`)
+      .replace(/\[RE-HOOK[^\]]*\]/g, (m) => `<span style="color:#dc2626">${m}</span>`)
+      .replace(/\n/g, '<br/>');
+    const score = finalResult.scorecard;
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html><head><title>${safeTitle}</title>
+      <meta charset="utf-8"/>
+      <style>
+        body { font-family: Georgia, 'Times New Roman', serif; max-width: 760px; margin: 40px auto; padding: 0 24px; color:#111; line-height: 1.65; font-size: 14px; }
+        h1 { font-family: -apple-system, system-ui, sans-serif; font-size: 22px; margin-bottom: 4px; }
+        .meta { font-family: -apple-system, system-ui, sans-serif; color:#666; font-size: 12px; margin-bottom: 24px; border-bottom: 1px solid #eee; padding-bottom: 12px; }
+        .meta span { margin-right: 16px; }
+        .score { display:inline-block; padding:2px 8px; border-radius:4px; background:#059669; color:#fff; font-weight:700; font-size:11px; }
+        .script { white-space: pre-wrap; }
+        @media print { body { margin: 0; padding: 12px; } }
+      </style></head><body>
+      <h1>${safeTitle}</h1>
+      <div class="meta">
+        <span>ScriptOS Production Script</span>
+        <span>${lengthMin} min</span>
+        ${score ? `<span class="score">${score.total}/${score.max_possible} • ${score.retention_grade || 'Production Grade'}</span>` : ''}
+      </div>
+      <div class="script">${htmlBody}</div>
+      <script>setTimeout(function(){ window.focus(); window.print(); }, 300);</script>
+      </body></html>`);
+    win.document.close();
+    toast('Opening print dialog...', 'info', 'Choose "Save as PDF" as the destination');
   };
 
   const exportAsSRT = (text?: string | null) => {
@@ -401,6 +453,15 @@ export default function ScriptStudioView() {
                 title="Download SRT Subtitles"
               >
                 <Download className="w-3.5 h-3.5" /> .SRT
+              </button>
+
+              <button
+                type="button"
+                onClick={downloadAsPDF}
+                className="px-2.5 py-1.5 text-xs font-medium border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 rounded-lg hover:bg-rose-100 flex items-center gap-1 transition-colors"
+                title="Open print dialog — choose 'Save as PDF' as the destination"
+              >
+                <FileText className="w-3.5 h-3.5" /> .PDF
               </button>
             </>
           )}

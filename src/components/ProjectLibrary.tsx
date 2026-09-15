@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { useScriptOSStore } from '@/lib/store';
+import { useToast } from '@/components/Toast';
 import {
   FolderOpen,
   Save,
@@ -33,18 +34,20 @@ export default function ProjectLibrary() {
     title,
     finalResult,
   } = useScriptOSStore();
+  const { toast, update } = useToast();
 
   const [newName, setNewName] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [importStatus, setImportStatus] = useState<string | null>(null);
   const [showNewConfirm, setShowNewConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!showProjectLibrary) return null;
 
   const handleSave = () => {
-    saveCurrentAsProject(newName || title);
+    const name = newName || title || 'Untitled Project';
+    saveCurrentAsProject(name);
     setNewName('');
+    toast('Project saved', 'success', `"${name.slice(0, 50)}" added to your library`);
   };
 
   const handleImportClick = () => fileInputRef.current?.click();
@@ -52,9 +55,9 @@ export default function ProjectLibrary() {
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const tid = toast('Importing project...', 'loading', file.name);
     const ok = await importProjectFromJson(file);
-    setImportStatus(ok ? 'Imported successfully' : 'Import failed — invalid file');
-    setTimeout(() => setImportStatus(null), 3000);
+    update(tid, ok ? 'Project imported' : 'Import failed', ok ? 'success' : 'error', ok ? file.name : 'Invalid or corrupted file');
     if (e.target) e.target.value = '';
   };
 
@@ -62,6 +65,28 @@ export default function ProjectLibrary() {
     resetPipeline();
     setShowProjectLibrary(false);
     setShowNewConfirm(false);
+    toast('Started a new project', 'info', 'Wizard reset to defaults');
+  };
+
+  const handleLoad = (id: string, name: string) => {
+    loadProject(id);
+    toast('Project loaded', 'success', `"${name.slice(0, 50)}" restored to workspace`);
+  };
+
+  const handleDuplicate = (id: string, name: string) => {
+    duplicateProject(id);
+    toast('Project duplicated', 'success', `"${name.slice(0, 50)} (copy)" created`);
+  };
+
+  const handleExport = (id: string, name: string) => {
+    exportProjectToJson(id);
+    toast('Exporting project...', 'info', `Downloading "${name.slice(0, 50)}.scriptos.json"`);
+  };
+
+  const handleDelete = (id: string, name: string) => {
+    deleteProject(id);
+    setConfirmDeleteId(null);
+    toast('Project deleted', 'info', `"${name.slice(0, 50)}" removed`);
   };
 
   return (
@@ -211,13 +236,13 @@ export default function ProjectLibrary() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button
-                      onClick={() => loadProject(p.id)}
+                      onClick={() => handleLoad(p.id, p.name)}
                       className="flex-1 px-3 py-1.5 text-xs font-semibold text-white bg-neutral-900 dark:bg-neutral-100 dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-white rounded-lg transition-colors"
                     >
                       Load
                     </button>
                     <button
-                      onClick={() => duplicateProject(p.id)}
+                      onClick={() => handleDuplicate(p.id, p.name)}
                       className="p-1.5 text-neutral-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/30 rounded-lg transition-colors"
                       aria-label="Duplicate project"
                       title="Duplicate"
@@ -225,7 +250,7 @@ export default function ProjectLibrary() {
                       <Copy className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => exportProjectToJson(p.id)}
+                      onClick={() => handleExport(p.id, p.name)}
                       className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-lg transition-colors"
                       aria-label="Export project as JSON"
                       title="Export as JSON"
@@ -235,10 +260,7 @@ export default function ProjectLibrary() {
                     {confirmDeleteId === p.id ? (
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={() => {
-                            deleteProject(p.id);
-                            setConfirmDeleteId(null);
-                          }}
+                          onClick={() => handleDelete(p.id, p.name)}
                           className="px-2.5 py-1.5 text-[11px] font-semibold text-white bg-rose-600 hover:bg-rose-500 rounded-lg transition-colors"
                         >
                           Confirm

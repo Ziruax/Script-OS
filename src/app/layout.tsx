@@ -1,5 +1,6 @@
 import type {Metadata} from 'next';
 import './globals.css'; // Global styles
+import { ToastProvider } from '@/components/Toast';
 
 export const metadata: Metadata = {
   title: 'ScriptOS - Complete Local Script Operating System',
@@ -33,7 +34,9 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
       <head>
         <script dangerouslySetInnerHTML={{__html: themeInitScript}} />
       </head>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }

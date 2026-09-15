@@ -10,6 +10,7 @@ import SettingsView from '@/components/SettingsView';
 import HelpModal from '@/components/HelpModal';
 import PlaybookModal from '@/components/PlaybookModal';
 import ProjectLibrary from '@/components/ProjectLibrary';
+import { useToast } from '@/components/Toast';
 import {
   Sparkles,
   Search,
@@ -53,6 +54,7 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
     isGenerating,
     startFullGeneration,
   } = useScriptOSStore();
+  const { toast } = useToast();
 
   useEffect(() => {
     loadFromStorage();
@@ -90,7 +92,9 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
       // ⌘/Ctrl + S → save current project (prevent browser save dialog)
       if (mod && e.key.toLowerCase() === 's') {
         e.preventDefault();
+        const name = title || 'Untitled Project';
         saveCurrentAsProject(title || undefined);
+        toast('Project saved', 'success', `"${name.slice(0, 50)}" added to your library`);
         return;
       }
       // ⌘/Ctrl + Enter → start full generation (only when not already generating and title exists)
@@ -98,13 +102,14 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
         if (title?.trim() && !isGenerating) {
           e.preventDefault();
           startFullGeneration();
+          toast('Starting full pipeline', 'info', 'Story DNA → Research → Angles → Outline → Script');
         }
         return;
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [saveCurrentAsProject, startFullGeneration, title, isGenerating]);
+  }, [saveCurrentAsProject, startFullGeneration, title, isGenerating, toast]);
 
   const navItems = [
     { id: 'wizard', label: 'Wizard', icon: Sparkles, step: 1 },

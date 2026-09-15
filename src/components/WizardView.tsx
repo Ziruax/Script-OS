@@ -554,6 +554,19 @@ export default function WizardView() {
           })}
         </div>
 
+        {/* Estimated generation time banner — based on averaged ZAI call timings */}
+        <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-violet-50/60 to-fuchsia-50/40 dark:from-violet-950/20 dark:to-fuchsia-950/10 border border-violet-200/60 dark:border-violet-900/50">
+          <Clock className="w-4 h-4 text-violet-500 shrink-0" />
+          <span className="text-xs text-violet-900 dark:text-violet-200">
+            <span className="font-semibold">Est. full pipeline time:</span>{' '}
+            <span className="font-mono font-bold">~{Math.round(2 + 21 + 27 + 5 + 20 + (Math.max(3, Math.min(12, Math.round(lengthMin / 3))) * 9) + 5 + 3)}s</span>
+            {' '}via {provider === 'zai' ? 'Z.AI GLM' : provider.toUpperCase()}
+          </span>
+          <span className="ml-auto text-[10px] text-violet-500 dark:text-violet-400 hidden sm:inline">
+            story-dna + research + angles + outline + {Math.max(3, Math.min(12, Math.round(lengthMin / 3)))} chapters + humanize + qa
+          </span>
+        </div>
+
         {/* Quick Architect Story DNA Button */}
         <div className="flex items-center justify-between pt-1">
           <button
