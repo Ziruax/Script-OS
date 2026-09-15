@@ -232,6 +232,9 @@ export interface ScriptOSState {
   saveCurrentAsProject: (name?: string) => void;
   loadProject: (id: string) => void;
   deleteProject: (id: string) => void;
+  duplicateProject: (id: string) => void;
+  exportProjectToJson: (id: string) => void;
+  importProjectFromJson: (file: File) => Promise<boolean>;
   setShowProjectLibrary: (show: boolean) => void;
 }
 
@@ -1117,6 +1120,65 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
     set({ savedProjects: updated });
     if (typeof window !== 'undefined') {
       localStorage.setItem('scriptos_saved_projects', JSON.stringify(updated));
+    }
+  },
+
+  duplicateProject: (id) => {
+    const project = get().savedProjects.find((p) => p.id === id);
+    if (!project) return;
+    const copy = {
+      ...project,
+      id: `proj_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      name: `${project.name} (copy)`,
+      savedAt: Date.now(),
+    };
+    const updated = [copy, ...get().savedProjects].slice(0, 50);
+    set({ savedProjects: updated });
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('scriptos_saved_projects', JSON.stringify(updated));
+    }
+  },
+
+  exportProjectToJson: (id) => {
+    if (typeof window === 'undefined') return;
+    const project = get().savedProjects.find((p) => p.id === id);
+    if (!project) return;
+    const payload = {
+      format: 'scriptos-project-v1',
+      exportedAt: new Date().toISOString(),
+      project,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeName = (project.name || 'scriptos-project').replace(/[^a-z0-9_-]+/gi, '_').slice(0, 50);
+    a.href = url;
+    a.download = `${safeName}.scriptos.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  },
+
+  importProjectFromJson: async (file) => {
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const project = parsed.project || parsed;
+      if (!project.snapshot || !project.name) return false;
+      const imported = {
+        ...project,
+        id: `proj_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        savedAt: Date.now(),
+      };
+      const updated = [imported, ...get().savedProjects].slice(0, 50);
+      set({ savedProjects: updated });
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('scriptos_saved_projects', JSON.stringify(updated));
+      }
+      return true;
+    } catch {
+      return false;
     }
   },
 }));

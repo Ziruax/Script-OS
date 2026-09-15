@@ -18,6 +18,7 @@ import {
   BookOpen,
   ShieldCheck,
   Zap,
+  Film,
 } from 'lucide-react';
 import {
   CONTENT_TYPES,
@@ -424,6 +425,67 @@ export default function WizardView() {
             </div>
           </div>
         )}
+
+        {/* Live Pipeline Preview cards — estimated word count, chapter count, read time */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          {[
+            {
+              label: 'Est. Word Count',
+              value: (Math.round(lengthMin * 155)).toLocaleString(),
+              sub: 'words',
+              icon: Layers,
+              tint: 'text-blue-600 dark:text-blue-400',
+              bg: 'from-blue-50/70 to-cyan-50/40 dark:from-blue-950/20 dark:to-cyan-950/10',
+              border: 'border-blue-200/70 dark:border-blue-900/50',
+            },
+            {
+              label: 'Est. Chapters',
+              value: String(Math.max(3, Math.min(12, Math.round(lengthMin / 3)))),
+              sub: 'sections',
+              icon: BookOpen,
+              tint: 'text-purple-600 dark:text-purple-400',
+              bg: 'from-purple-50/70 to-fuchsia-50/40 dark:from-purple-950/20 dark:to-fuchsia-950/10',
+              border: 'border-purple-200/70 dark:border-purple-900/50',
+            },
+            {
+              label: 'Read Time',
+              value: `${lengthMin}m`,
+              sub: lengthMin >= 60 ? `${(lengthMin / 60).toFixed(1)}h` : 'minutes',
+              icon: Clock,
+              tint: 'text-emerald-600 dark:text-emerald-400',
+              bg: 'from-emerald-50/70 to-teal-50/40 dark:from-emerald-950/20 dark:to-teal-950/10',
+              border: 'border-emerald-200/70 dark:border-emerald-900/50',
+            },
+            {
+              label: 'B-Roll Cues',
+              value: String(Math.max(3, Math.min(12, Math.round(lengthMin / 3)) * 2)),
+              sub: 'est. shots',
+              icon: Film,
+              tint: 'text-amber-600 dark:text-amber-400',
+              bg: 'from-amber-50/70 to-orange-50/40 dark:from-amber-950/20 dark:to-orange-950/10',
+              border: 'border-amber-200/70 dark:border-amber-900/50',
+            },
+          ].map((card) => {
+            const Icon = card.icon;
+            return (
+              <div
+                key={card.label}
+                className={`p-3 rounded-xl bg-gradient-to-br ${card.bg} border ${card.border} flex flex-col gap-1`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-neutral-500 dark:text-neutral-400">
+                    {card.label}
+                  </span>
+                  <Icon className={`w-3.5 h-3.5 ${card.tint}`} />
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className={`text-xl font-bold ${card.tint}`}>{card.value}</span>
+                  <span className="text-[10px] text-neutral-400">{card.sub}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
         {/* Quick Architect Story DNA Button */}
         <div className="flex items-center justify-between pt-1">

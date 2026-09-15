@@ -217,11 +217,18 @@ Synthesize the 4-Tier Research Pack now. Ground every fact and story in the retr
       const combinedSources = Array.from(new Set([...(pack.sources || []), ...(pythonData.sources || [])]));
       pack.sources = combinedSources.slice(0, 15);
 
-      // Blend genuine Reddit stories if present
-      if (pythonData.human_stories.length > 0 && (!pack.human_stories || pack.human_stories.length < 2)) {
+      // Blend genuine Reddit stories if present (ZAI researcher exposes reddit_threads, not human_stories)
+      const redditStories: Array<{ story: string; source: string; subreddit?: string }> =
+        (pythonData.reddit_threads || []).map((r: any) => ({
+          story: r.snippet || r.title || '',
+          source: r.url || '',
+          subreddit: r.host_name || r.subreddit || '',
+        })).filter((s: any) => s.story);
+
+      if (redditStories.length > 0 && (!pack.human_stories || pack.human_stories.length < 2)) {
         pack.human_stories = [
           ...(pack.human_stories || []),
-          ...pythonData.human_stories.slice(0, 2),
+          ...redditStories.slice(0, 2),
         ];
       }
     }

@@ -47,7 +47,17 @@ export interface ZaiResearchOutput {
 
 const TIMEOUT = (ms: number) => new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
 
+// Simple in-memory cache to avoid re-hitting the web_search API (and 429s) for identical queries.
+const _searchCache = new Map<string, { ts: number; data: WebResult[] }>();
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
 async function searchOnce(query: string, num: number): Promise<WebResult[]> {
+  const cacheKey = `${query}::${num}`;
+  const cached = _searchCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+    return cached.data;
+  }
+
   // Retry up to 2 times on rate-limit (429) with backoff
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -56,14 +66,20 @@ async function searchOnce(query: string, num: number): Promise<WebResult[]> {
         zai.functions.invoke('web_search', { query, num }),
         TIMEOUT(10000),
       ]);
-      if (!Array.isArray(results)) return [];
-      return results.slice(0, num).map((r) => ({
+      if (!Array.isArray(results)) {
+        const empty: WebResult[] = [];
+        _searchCache.set(cacheKey, { ts: Date.now(), data: empty });
+        return empty;
+      }
+      const mapped: WebResult[] = results.slice(0, num).map((r) => ({
         title: r.name || r.title || '(untitled)',
         url: r.url || '',
         snippet: r.snippet || '',
         host_name: r.host_name || '',
         source_type: 'web',
       }));
+      _searchCache.set(cacheKey, { ts: Date.now(), data: mapped });
+      return mapped;
     } catch (err: any) {
       const msg = String(err?.message || err);
       const isRateLimit = msg.includes('429') || msg.includes('Too many requests');
