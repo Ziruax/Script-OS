@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useScriptOSStore } from '@/lib/store';
+import { useToast } from '@/components/Toast';
 import {
   Search,
   ExternalLink,
@@ -21,6 +22,9 @@ import {
   ChevronDown,
   Filter,
   Quote,
+  Copy,
+  Link2,
+  Wand2,
 } from 'lucide-react';
 
 type SourceFilter = 'all' | 'wikipedia' | 'reddit' | 'web';
@@ -78,6 +82,7 @@ export default function ResearchView() {
     generateAnglesOnly,
     setResearchPack,
   } = useScriptOSStore();
+  const { toast } = useToast();
 
   const [isEditing, setIsEditing] = useState(false);
   const [customSearchQuery, setCustomSearchQuery] = useState('');

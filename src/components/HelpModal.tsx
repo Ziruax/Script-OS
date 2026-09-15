@@ -177,7 +177,19 @@ export default function HelpModal() {
               </button>
             ))}
           </div>
-          <p className="text-[10px] text-neutral-400 text-center">+ 4 more templates in the Wizard (Finance, Health, Biography, News Analysis)</p>
+          <p className="text-[10px] text-neutral-400 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setShowHelpModal(false);
+                setHasSeenOnboarding(true);
+                setActiveTab('wizard');
+              }}
+              className="text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              See all 10 templates in the Wizard →
+            </button>
+          </p>
         </div>
       ),
     },
@@ -197,8 +209,16 @@ export default function HelpModal() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+        {/* Progress bar — thin gradient strip at the very top */}
+        <div className="h-1 w-full bg-neutral-100 dark:bg-neutral-800 shrink-0">
+          <div
+            className="h-full bg-gradient-to-r from-emerald-500 via-blue-500 to-purple-500 transition-all duration-300"
+            style={{ width: `${((activeStep + 1) / steps.length) * 100}%` }}
+          />
+        </div>
+
         {/* Header */}
-        <div className="px-6 pt-6 pb-4 flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800">
+        <div className="px-6 pt-5 pb-4 flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-neutral-100 dark:bg-neutral-800 rounded-xl">
               {steps[activeStep].icon}
@@ -227,16 +247,26 @@ export default function HelpModal() {
 
         {/* Footer */}
         <div className="px-6 py-4 bg-neutral-50 dark:bg-neutral-900/60 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            {steps.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveStep(i)}
-                className={`w-2 h-2 rounded-full transition-all ${
-                  i === activeStep ? 'w-6 bg-neutral-900 dark:bg-neutral-100' : 'bg-neutral-300 dark:bg-neutral-700'
-                }`}
-              />
-            ))}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              {steps.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveStep(i)}
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    i === activeStep ? 'w-6 bg-neutral-900 dark:bg-neutral-100' : i < activeStep ? 'bg-emerald-400 dark:bg-emerald-600' : 'bg-neutral-300 dark:bg-neutral-700'
+                  }`}
+                  aria-label={`Go to step ${i + 1}`}
+                />
+              ))}
+            </div>
+            <button
+              onClick={handleFinish}
+              className="text-[10px] text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors underline-offset-2 hover:underline"
+              title="Mark onboarding complete and start using ScriptOS"
+            >
+              Skip onboarding
+            </button>
           </div>
 
           <div className="flex items-center gap-2">
