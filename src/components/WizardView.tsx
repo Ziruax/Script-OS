@@ -28,6 +28,7 @@ import {
   AudienceIntent,
   EmotionalEngine,
 } from '@/lib/story-dna';
+import { WIZARD_TEMPLATES, WizardTemplate } from '@/lib/templates';
 
 export default function WizardView() {
   const {
@@ -75,6 +76,22 @@ export default function WizardView() {
   const estChapters = getEstChapters(lengthMin);
   const estWords = lengthMin * 140;
 
+  const applyTemplate = (t: WizardTemplate) => {
+    updateInputs({
+      title: t.title,
+      details: t.details,
+      lengthMin: t.lengthMin,
+      contentType: t.contentType as any,
+      narrativeMode: t.narrativeMode as any,
+      audienceIntent: t.audienceIntent as any,
+      emotionalEngine: t.emotionalEngine as any,
+      audience: 'Auto-detect',
+      goal: 'Auto-detect',
+      tone: 'Auto-detect',
+      detectedRationale: `Applied "${t.name}" template — auto-detect will refine audience/goal/tone.`,
+    });
+  };
+
   return (
     <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-200">
       {/* Title & Pitch */}
@@ -97,6 +114,56 @@ export default function WizardView() {
           <HelpCircle className="w-4 h-4 text-neutral-500" />
           Onboarding Guide
         </button>
+      </div>
+
+      {/* Quick Start Templates */}
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-1.5">
+            <Zap className="w-3.5 h-3.5 text-amber-500" />
+            Quick Start Templates
+            <span className="text-[10px] font-normal text-neutral-400">— one click fills the whole wizard</span>
+          </label>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          {WIZARD_TEMPLATES.map((t) => {
+            const isActive = title === t.title;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => applyTemplate(t)}
+                className={`group relative p-3 rounded-xl border text-left transition-all overflow-hidden ${
+                  isActive
+                    ? 'border-neutral-900 dark:border-neutral-100 bg-white dark:bg-neutral-800 shadow-md'
+                    : 'border-neutral-200 dark:border-neutral-800 bg-white/60 dark:bg-neutral-900/60 hover:border-neutral-300 dark:hover:border-neutral-700 hover:shadow-sm'
+                }`}
+              >
+                {/* Gradient accent strip */}
+                <div
+                  className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${t.accent}`}
+                  aria-hidden
+                />
+                <div className="flex items-start gap-2 pt-1">
+                  <span className="text-lg leading-none">{t.emoji}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-neutral-900 dark:text-neutral-100 truncate">{t.name}</span>
+                      {isActive && <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />}
+                    </div>
+                    <p className="text-[10px] text-neutral-500 dark:text-neutral-400 mt-0.5 line-clamp-2">{t.desc}</p>
+                    <div className="flex items-center gap-1.5 mt-1.5 text-[9px] text-neutral-400">
+                      <Clock className="w-2.5 h-2.5" />
+                      <span>{t.lengthMin}m</span>
+                      <span className="text-neutral-300 dark:text-neutral-700">•</span>
+                      <span className="truncate">{t.contentType}</span>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-sm space-y-6">

@@ -48,6 +48,10 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
     theme,
     toggleTheme,
     setShowProjectLibrary,
+    saveCurrentAsProject,
+    title,
+    isGenerating,
+    startFullGeneration,
   } = useScriptOSStore();
 
   useEffect(() => {
@@ -78,6 +82,29 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
     }, 10000);
     return () => clearInterval(interval);
   }, [saveToStorage]);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      // ⌘/Ctrl + S → save current project (prevent browser save dialog)
+      if (mod && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        saveCurrentAsProject(title || undefined);
+        return;
+      }
+      // ⌘/Ctrl + Enter → start full generation (only when not already generating and title exists)
+      if (mod && e.key === 'Enter') {
+        if (title?.trim() && !isGenerating) {
+          e.preventDefault();
+          startFullGeneration();
+        }
+        return;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [saveCurrentAsProject, startFullGeneration, title, isGenerating]);
 
   const navItems = [
     { id: 'wizard', label: 'Wizard', icon: Sparkles, step: 1 },
@@ -261,9 +288,17 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
             ScriptOS • Powered by {provider === 'zai' ? 'Z.AI GLM (zero-config)' : provider.toUpperCase()} • {selectedModel}
           </div>
           <div className="flex items-center gap-4">
-            <span>Dual Review Councils (O1-O5 & S1-S6)</span>
-            <span className="hidden sm:inline">•</span>
-            <span className="hidden sm:inline">Real-time web research via ZAI</span>
+            <span className="hidden md:flex items-center gap-1.5">
+              <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-[9px] font-mono">⌘/Ctrl</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-[9px] font-mono">↵</kbd>
+              <span className="text-[10px]">generate</span>
+              <kbd className="ml-2 px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-[9px] font-mono">⌘/Ctrl</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-[9px] font-mono">S</kbd>
+              <span className="text-[10px]">save project</span>
+            </span>
+            <span className="hidden lg:inline">Dual Review Councils (O1-O5 & S1-S6)</span>
+            <span className="hidden lg:inline">•</span>
+            <span className="hidden lg:inline">Real-time web research via ZAI</span>
           </div>
         </div>
       </footer>

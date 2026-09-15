@@ -409,30 +409,43 @@ export default function ScriptStudioView() {
 
       {/* Progress banner if currently writing */}
       {isGenerating && (
-        <div className="p-4 rounded-2xl border border-blue-200 dark:border-blue-900 bg-blue-50/70 dark:bg-blue-950/40 space-y-3">
+        <div className="p-4 rounded-2xl border border-blue-200 dark:border-blue-900 bg-gradient-to-br from-blue-50/80 to-indigo-50/60 dark:from-blue-950/40 dark:to-indigo-950/30 space-y-3 shadow-sm">
           <div className="flex items-center justify-between text-xs font-semibold text-blue-900 dark:text-blue-200">
             <span className="flex items-center gap-2">
               <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
               {currentProgressMessage || 'Writing & Auditing Chapters...'}
             </span>
-            <span>
+            <span className="flex items-center gap-2">
               {activeChapterGeneratingIndex > 0
-                ? `Chapter ${activeChapterGeneratingIndex} of ${totalChapters}`
+                ? <span>Chapter <span className="font-mono font-bold text-blue-700 dark:text-blue-300">{activeChapterGeneratingIndex}</span> of {totalChapters}</span>
                 : 'Processing...'}
+              {chapters.length > 0 && (
+                <span className="text-blue-700 dark:text-blue-300 font-mono">• {chapters.reduce((sum, c) => sum + (c.script_text?.split(/\s+/).length || 0), 0).toLocaleString()} words</span>
+              )}
             </span>
           </div>
 
-          <div className="w-full h-2 bg-blue-200 dark:bg-blue-900 rounded-full overflow-hidden">
+          <div className="relative w-full h-2.5 bg-blue-100 dark:bg-blue-900/60 rounded-full overflow-hidden">
             <div
-              className="h-full bg-blue-600 transition-all duration-300"
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 transition-all duration-500 rounded-full"
               style={{
                 width: `${Math.max(
                   10,
-                  Math.min(100, (activeChapterGeneratingIndex / totalChapters) * 100)
+                  Math.min(100, (activeChapterGeneratingIndex / Math.max(1, totalChapters)) * 100)
                 )}%`,
               }}
             />
+            {/* Shimmer overlay */}
+            <div
+              className="absolute inset-0 opacity-40"
+              style={{
+                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent)',
+                backgroundSize: '200% 100%',
+                animation: 'scriptos-shimmer 2s linear infinite',
+              }}
+            />
           </div>
+          <style>{`@keyframes scriptos-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
         </div>
       )}
 
