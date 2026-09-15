@@ -402,3 +402,50 @@ Unresolved issues / next-phase priorities:
 - The PlaybookModal and HelpModal still have their own styling (purple/blue gradients). Could align them to the new emerald design system.
 - Could add a subtle "first time" hint (a small dismissible banner pointing to templates) instead of the full-screen modal — non-annoying discovery.
 - The mobile dropdown nav uses a native <select> which works but isn't as polished as a custom sheet; could replace with a bottom-sheet drawer.
+
+---
+Task ID: 9 (user-requested: logo + remove provider text + all-models picker)
+Agent: main (Z.ai Code)
+Task: User requested: (1) don't show "Z.AI zero-config" and "Z.AI GLM · glm-4.6" text in header/footer tags, (2) create an app logo and icon and add them, (3) let users choose from ALL available models of a provider (currently they can't).
+
+Work Log:
+- Read previous worklog (Task 8: UI redesign). The redesign was complete but the header still had a "Z.AI zero-config" status pill and the footer showed "Z.AI GLM · glm-4.6" provider text — the user found these noisy. The model picker also only showed a small hardcoded list.
+
+CHANGES:
+
+1. Removed provider/model text from header + footer (MainApp):
+   - Removed the emerald "Z.AI zero-config / provider • model" status pill from the top bar.
+   - Removed the "{provider} · {selectedModel}" text from the footer; footer now shows just "ScriptOS • Retention Script Operating System" + keyboard hints + a small logo.
+   - Removed the unused `provider`/`selectedModel`/`Zap` imports + destructures from MainApp.
+   - Verified live: `!document.body.innerText.includes('Z.AI zero-config')` = true; footer text = "ScriptOS • Retention Script Operating System ⌘↵ generate ⌘S save …".
+
+2. Created app logo + icon:
+   - `public/logo.svg` — 512×512 SVG: emerald-gradient rounded square with a film-clapper bar (with stripes) + script-page body (with text lines) + a play triangle. The combined motif reads as "script + play/generate".
+   - `public/favicon.svg` — 64×64 simplified version (rounded square + play triangle + clapper accent) that reads crisply at 16×16 in a browser tab.
+   - `src/components/Logo.tsx` — inline React SVG component (no <img> / no network request / no next/image warning) used in 3 places in MainApp (sidebar, mobile header, footer) at 36px/28px/14px.
+   - Wired into `layout.tsx` metadata: `icons.icon = /favicon.svg`, `icons.apple = /logo.svg`, OpenGraph + Twitter images = /logo.svg. Title updated to "ScriptOS — Retention Script Operating System".
+   - Verified live: GET /favicon.svg 200, GET /logo.svg 200, 3 inline `<svg aria-label="ScriptOS">` elements render in the DOM.
+
+3. Let users choose from ALL available models of a provider (the headline feature request):
+   - Expanded the ZAI model catalogue in `/api/models/list` from 4 → 10 models: glm-4.6, glm-4.5, glm-4.5-air, glm-4-plus, glm-4-long (1M context), glm-4-air, glm-4-airx, glm-4-flash (free), glm-4-flashx, glm-3-turbo.
+   - Expanded the default `availableModels` in the store to match (so users see all 10 immediately without clicking Fetch).
+   - Removed the early 400 "No API key provided" response for non-ZAI providers. Now ALL providers return 200 with their full fallback model catalogue even without a key — users can browse every option (they just can't generate without a key). A key enables the LIVE fetch from the provider's API.
+   - Added auto-fetch on provider change: `updateSettings()` now detects when `fields.provider` differs from the old provider and triggers `fetchLiveModels()` via setTimeout — so switching provider immediately populates the picker with that provider's full catalogue.
+   - Updated the Settings model-picker label: "Choose Model (N available for {PROVIDER})" + the empty-state now says "Click 'Fetch' above to load the full live catalogue from {PROVIDER}".
+   - Verified live: default ZAI shows "10 available for ZAI"; switch to OpenAI → "3 available for OPENAI" + gpt-4o visible; switch to OpenRouter → "50 available for OPENROUTER". All 7 providers return 200 with their full list (zai=10, google=5, openai=3, claude=3, deepseek=2, xai=2, openrouter=50).
+
+VERIFICATION:
+- `bun run lint` → clean (0 errors, 0 warnings — the 3 <img> warnings were eliminated by switching to the inline <Logo> component).
+- Dev server: Next.js 16.3.5, ready, zero errors. GET / 200, GET /favicon.svg 200, GET /logo.svg 200, POST /api/models/list 200 for all 7 providers.
+- agent-browser QA: zero page errors. No "Z.AI zero-config" in header ✓, no provider text in footer ✓, logo SVG renders (3 instances) ✓. Settings: ZAI shows 10 models, OpenAI switch auto-fetches 3 models, OpenRouter switch auto-fetches 50 models.
+- Captured 2 screenshots: scriptos-v9-logo-models.png, scriptos-v9-all-models.png.
+
+Stage Summary:
+- All 3 user requests delivered: (1) header/footer no longer show provider/model text, (2) a proper SVG logo + favicon created and wired in (inline component + metadata icons), (3) users can now choose from ALL available models of any provider — the ZAI catalogue expanded from 4→10, non-ZAI providers return their full fallback list even without a key, and switching provider auto-fetches the catalogue.
+- All changes lint-clean and verified end-to-end via agent-browser + curl.
+
+Unresolved issues / risks / next-phase priorities:
+- The non-ZAI provider model lists are static fallbacks (not live-fetched) when no key is present — accurate for major models but may lag behind new releases. With a key, the live fetch supersedes the fallback.
+- Could add a small "live" vs "fallback" badge on each model in the picker so users know whether the list is fresh from the API or a static snapshot.
+- The Logo.tsx inline SVG duplicates the public/logo.svg markup — could DRY by generating one from the other, but keeping them separate is simpler and avoids build complexity.
+- Could add the logo to the onboarding HelpModal and the PlaybookModal headers for full brand consistency.

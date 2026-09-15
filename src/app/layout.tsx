@@ -3,17 +3,25 @@ import './globals.css'; // Global styles
 import { ToastProvider } from '@/components/Toast';
 
 export const metadata: Metadata = {
-  title: 'ScriptOS - Complete Local Script Operating System',
-  description: 'Professional-grade local operating system for retention-optimized, undetectable, unique-perspective scripts.',
+  title: 'ScriptOS — Retention Script Operating System',
+  description: 'Professional-grade operating system for retention-optimized, undetectable, unique-perspective scripts.',
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+    ],
+    apple: '/logo.svg',
+  },
   openGraph: {
-    title: 'ScriptOS - Complete Local Script Operating System',
-    description: 'Professional-grade local operating system for retention-optimized, undetectable, unique-perspective scripts.',
+    title: 'ScriptOS — Retention Script Operating System',
+    description: 'Professional-grade operating system for retention-optimized, undetectable, unique-perspective scripts.',
     type: 'website',
+    images: ['/logo.svg'],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'ScriptOS - Complete Local Script Operating System',
-    description: 'Professional-grade local operating system for retention-optimized, undetectable, unique-perspective scripts.',
+    title: 'ScriptOS — Retention Script Operating System',
+    description: 'Professional-grade operating system for retention-optimized, undetectable, unique-perspective scripts.',
+    images: ['/logo.svg'],
   },
 };
 

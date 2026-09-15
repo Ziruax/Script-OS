@@ -239,7 +239,7 @@ export default function SettingsView() {
       <section className="surface rounded-2xl p-5 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <label className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-            Active Model <span className="text-[11px] text-neutral-400 font-normal">({availableModels.length} available)</span>
+            Choose Model <span className="text-[11px] text-neutral-400 font-normal">({availableModels.length} available for {provider.toUpperCase()})</span>
           </label>
           <input
             type="text"
@@ -275,7 +275,7 @@ export default function SettingsView() {
             })
           ) : (
             <div className="p-4 text-center text-xs text-neutral-500">
-              No matching models. Click “Fetch” to query live endpoints.
+              No matching models. Click “Fetch” above to load the full live catalogue from {provider.toUpperCase()}.
             </div>
           )}
         </div>

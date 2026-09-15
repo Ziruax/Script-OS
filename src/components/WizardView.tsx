@@ -47,7 +47,6 @@ export default function WizardView() {
     detectedRationale,
     isDetectingMetadata,
     storyDna,
-    provider,
     selectedModel,
     isGenerating,
     currentProgressMessage,

@@ -11,6 +11,7 @@ import HelpModal from '@/components/HelpModal';
 import PlaybookModal from '@/components/PlaybookModal';
 import ProjectLibrary from '@/components/ProjectLibrary';
 import { useToast } from '@/components/Toast';
+import { Logo } from '@/components/Logo';
 import {
   Sparkles,
   Search,
@@ -26,7 +27,6 @@ import {
   FolderOpen,
   PanelLeftClose,
   PanelLeft,
-  Zap,
 } from 'lucide-react';
 
 interface MainAppProps {
@@ -42,8 +42,6 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
     setCurrentStep,
     setShowHelpModal,
     setShowPlaybookModal,
-    provider,
-    selectedModel,
     autoSaveTime,
     loadFromStorage,
     saveToStorage,
@@ -149,9 +147,7 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
           className="h-16 flex items-center gap-2.5 px-4 border-b border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors shrink-0"
           title="ScriptOS"
         >
-          <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-black shadow-sm shrink-0">
-            S
-          </span>
+          <Logo size={36} className="w-9 h-9 rounded-lg shrink-0" />
           {!sidebarCollapsed && (
             <div className="min-w-0">
               <div className="font-bold text-base tracking-tight leading-none">ScriptOS</div>
@@ -235,9 +231,7 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
                 onClick={() => setActiveTab('wizard')}
                 className="md:hidden flex items-center gap-2 font-bold tracking-tight"
               >
-                <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-black text-sm">
-                  S
-                </span>
+                <Logo size={28} className="w-7 h-7 rounded-md" />
               </button>
 
               {/* Mobile nav dropdown */}
@@ -254,11 +248,6 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
                   <option key={i.id} value={i.id}>{i.label}</option>
                 ))}
               </select>
-
-              <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900">
-                <Zap className="w-3 h-3" />
-                {provider === 'zai' ? 'Z.AI zero-config' : `${provider.toUpperCase()} • ${selectedModel}`}
-              </span>
             </div>
 
             {/* Right side: auto-save + theme + help */}
@@ -339,10 +328,10 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
         <footer className="mt-auto py-3 border-t border-neutral-200 dark:border-neutral-800 bg-white/40 dark:bg-neutral-900/40">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-neutral-400">
             <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <Logo size={14} className="w-3.5 h-3.5 rounded-sm" />
               <span>ScriptOS</span>
               <span className="text-neutral-300 dark:text-neutral-700">•</span>
-              <span>{provider === 'zai' ? 'Z.AI GLM' : provider.toUpperCase()} · {selectedModel}</span>
+              <span>Retention Script Operating System</span>
             </div>
             <div className="flex items-center gap-3">
               <span className="hidden md:flex items-center gap-1">

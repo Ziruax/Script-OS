@@ -273,12 +273,16 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
   selectedModel: 'glm-4.6',
   customModelId: '',
   availableModels: [
-    { id: 'glm-4.6', name: 'GLM-4.6 [Default • Zero-config via Z.AI]', provider: 'zai', context_length: 131072 },
-    { id: 'glm-4.5', name: 'GLM-4.5 (Faster)', provider: 'zai', context_length: 131072 },
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (requires Google API key)', provider: 'google', context_length: 1048576 },
-    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Deep Reasoning, requires key)', provider: 'google', context_length: 2097152 },
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini (requires OpenAI key)', provider: 'openai', context_length: 128000 },
-    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (requires Anthropic key)', provider: 'claude', context_length: 200000 },
+    { id: 'glm-4.6', name: 'GLM-4.6 · Balanced quality & speed', provider: 'zai', context_length: 131072 },
+    { id: 'glm-4.5', name: 'GLM-4.5 · Fast & capable', provider: 'zai', context_length: 131072 },
+    { id: 'glm-4.5-air', name: 'GLM-4.5 Air · Lowest latency', provider: 'zai', context_length: 131072 },
+    { id: 'glm-4-plus', name: 'GLM-4 Plus · Higher quality reasoning', provider: 'zai', context_length: 131072 },
+    { id: 'glm-4-long', name: 'GLM-4 Long · Extended context', provider: 'zai', context_length: 1000000 },
+    { id: 'glm-4-air', name: 'GLM-4 Air · Lightweight', provider: 'zai', context_length: 131072 },
+    { id: 'glm-4-airx', name: 'GLM-4 AirX · Ultra-fast inference', provider: 'zai', context_length: 131072 },
+    { id: 'glm-4-flash', name: 'GLM-4 Flash · Free tier', provider: 'zai', context_length: 131072 },
+    { id: 'glm-4-flashx', name: 'GLM-4 FlashX · Fastest free tier', provider: 'zai', context_length: 131072 },
+    { id: 'glm-3-turbo', name: 'GLM-3 Turbo · Legacy fast', provider: 'zai', context_length: 131072 },
   ],
   localMode: 'AUTO',
   ramInfo: {
@@ -321,7 +325,15 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
   },
 
   updateInputs: (fields) => set((state) => ({ ...state, ...fields })),
-  updateSettings: (fields) => set((state) => ({ ...state, ...fields })),
+  updateSettings: (fields) => {
+    const oldProvider = get().provider;
+    set((state) => ({ ...state, ...fields }));
+    // When the provider changes, automatically fetch the full live model catalogue
+    // so the user can choose from ALL available options for that provider (ZAI needs no key).
+    if (fields.provider && fields.provider !== oldProvider) {
+      setTimeout(() => { get().fetchLiveModels(); }, 0);
+    }
+  },
 
   setApiKey: (prov, key) => {
     set((state) => {

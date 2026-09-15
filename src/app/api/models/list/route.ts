@@ -6,26 +6,32 @@ export async function POST(req: NextRequest) {
     const cleanProvider = provider.toLowerCase().trim();
     const effectiveKey = api_key.trim() || (cleanProvider === 'google' ? process.env.GEMINI_API_KEY : '');
 
-    if (!effectiveKey && cleanProvider !== 'zai') {
-      return NextResponse.json(
-        { detail: `No API key provided for ${cleanProvider.toUpperCase()}. Please paste your key.` },
-        { status: 400 }
-      );
-    }
-
+    // For ZAI, no key is ever needed. For other providers, we still return the full
+    // fallback model catalogue (200) even without a key so the user can browse and
+    // select any model — they just won't be able to actually generate with it until
+    // they paste a key. A key enables the LIVE fetch from the provider's API.
     const models: Array<{ id: string; name: string; provider: string; context_length?: number }> = [];
 
-    // ZAI provider — zero-config, system-managed credentials (no key required)
+    // ZAI provider — zero-config, system-managed credentials (no key required).
+    // Returns the full catalogue of GLM models available via z-ai-web-dev-sdk.
     if (cleanProvider === 'zai') {
       models.push(
-        { id: 'glm-4.6', name: 'GLM-4.6 [Default • Balanced quality & speed]', provider: 'zai', context_length: 131072 },
-        { id: 'glm-4.5', name: 'GLM-4.5 (Faster, lighter)', provider: 'zai', context_length: 131072 },
-        { id: 'glm-4.5-air', name: 'GLM-4.5 Air (Lowest latency)', provider: 'zai', context_length: 131072 },
-        { id: 'glm-4-plus', name: 'GLM-4 Plus (Higher quality)', provider: 'zai', context_length: 131072 },
+        { id: 'glm-4.6', name: 'GLM-4.6 · Balanced quality & speed', provider: 'zai', context_length: 131072 },
+        { id: 'glm-4.5', name: 'GLM-4.5 · Fast & capable', provider: 'zai', context_length: 131072 },
+        { id: 'glm-4.5-air', name: 'GLM-4.5 Air · Lowest latency', provider: 'zai', context_length: 131072 },
+        { id: 'glm-4-plus', name: 'GLM-4 Plus · Higher quality reasoning', provider: 'zai', context_length: 131072 },
+        { id: 'glm-4-long', name: 'GLM-4 Long · Extended context', provider: 'zai', context_length: 1000000 },
+        { id: 'glm-4-air', name: 'GLM-4 Air · Lightweight', provider: 'zai', context_length: 131072 },
+        { id: 'glm-4-airx', name: 'GLM-4 AirX · Ultra-fast inference', provider: 'zai', context_length: 131072 },
+        { id: 'glm-4-flash', name: 'GLM-4 Flash · Free tier', provider: 'zai', context_length: 131072 },
+        { id: 'glm-4-flashx', name: 'GLM-4 FlashX · Fastest free tier', provider: 'zai', context_length: 131072 },
+        { id: 'glm-3-turbo', name: 'GLM-3 Turbo · Legacy fast', provider: 'zai', context_length: 131072 },
       );
       return NextResponse.json({ provider: 'zai', models });
     }
 
+    // For non-ZAI providers: try a LIVE fetch if a key is present, otherwise return
+    // the full static fallback catalogue so the user can still browse every option.
     if (cleanProvider === 'google' || cleanProvider === 'gemini') {
       const url = `https://generativelanguage.googleapis.com/v1/models?key=${effectiveKey}`;
       const res = await fetch(url);
