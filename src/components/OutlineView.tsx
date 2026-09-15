@@ -146,15 +146,52 @@ export default function OutlineView() {
                   <h4 className="font-bold text-sm text-neutral-900 dark:text-neutral-100 leading-snug">
                     {ang.angle_title}
                   </h4>
-                  <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                    {ang.unique_statement}
-                  </p>
+                  {/* Story Mode fields (protagonist wound, want/need, emotional promise, opening image) */}
+                  {ang.protagonist_wound && (
+                    <div className="text-xs space-y-1.5">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Protagonist wound</span>
+                        <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed mt-0.5">{ang.protagonist_wound}</p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Want vs Need</span>
+                        <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed mt-0.5">{ang.want_vs_need}</p>
+                      </div>
+                      {ang.emotional_promise && (
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Emotional promise</span>
+                          <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed mt-0.5">{ang.emotional_promise}</p>
+                        </div>
+                      )}
+                      {ang.opening_image && (
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">Opening image</span>
+                          <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed italic mt-0.5">{ang.opening_image}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {/* Documentary fields (unique_statement, why_different, hook_example) — shown when not Story Mode */}
+                  {!ang.protagonist_wound && ang.unique_statement && (
+                    <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed">
+                      {ang.unique_statement}
+                    </p>
+                  )}
                 </div>
 
-                <div className="pt-3 border-t border-neutral-100 dark:border-neutral-800 space-y-1.5 text-[11px]">
-                  <div className="text-neutral-500 font-medium">Why it beats competitors:</div>
-                  <div className="text-neutral-700 dark:text-neutral-400">{ang.why_different}</div>
-                </div>
+                {/* Documentary "why different" + hook — only when not Story Mode */}
+                {!ang.protagonist_wound && (
+                  <div className="pt-3 border-t border-neutral-100 dark:border-neutral-800 space-y-1.5 text-[11px]">
+                    <div className="text-neutral-500 font-medium">Why it beats competitors:</div>
+                    <div className="text-neutral-700 dark:text-neutral-400">{ang.why_different}</div>
+                    {ang.hook_example && (
+                      <div className="pt-1.5">
+                        <div className="text-neutral-500 font-medium">Hook example:</div>
+                        <div className="text-neutral-700 dark:text-neutral-400 italic">&ldquo;{ang.hook_example}&rdquo;</div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}

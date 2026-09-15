@@ -3,6 +3,7 @@
 import React from 'react';
 import { useScriptOSStore } from '@/lib/store';
 import { WIZARD_TEMPLATES, WizardTemplate } from '@/lib/templates';
+import { getChapterCount } from '@/lib/chapter-math';
 import { useToast } from '@/components/Toast';
 import {
   Sparkles,
@@ -63,19 +64,9 @@ export default function WizardView() {
 
   const lengthPresets = [1, 3, 8, 15, 30, 45, 60, 90, 120];
 
-  const getEstChapters = (mins: number) => {
-    if (mins <= 1) return 2;
-    if (mins <= 3) return 3;
-    if (mins <= 8) return 5;
-    if (mins <= 15) return 8;
-    if (mins <= 30) return 12;
-    if (mins <= 45) return 15;
-    if (mins <= 60) return 18;
-    if (mins <= 90) return 24;
-    return Math.min(32, Math.round(24 + (mins - 90) * 0.25));
-  };
-
-  const estChapters = getEstChapters(lengthMin);
+  // Use the SHARED chapter-math so the preview count always matches the
+  // outline generation + section generation counts (no more mismatch).
+  const estChapters = getChapterCount(lengthMin);
   const estWords = lengthMin * 140;
 
   const applyTemplate = (t: WizardTemplate) => {

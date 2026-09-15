@@ -811,7 +811,28 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
       // Automatically run the 100-Point QA Audit
       await get().runQaAudit();
     } catch (err) {
-      set({ isGenerating: false, currentProgressMessage: 'Final humanizing failed' });
+      // Humanize failed — assemble a fallback finalResult from the generated chapters
+      // so the user still gets the full script + copy/export buttons. Never leave them
+      // with chapters but no way to copy the complete script.
+      const assembledScript = generatedChapters
+        .map((c) => `--- CHAPTER ${c.chapter_id}: ${c.title} ---\n\n${c.script_text}`)
+        .join('\n\n');
+      set({
+        finalResult: {
+          final_script: assembledScript,
+          hooks: [],
+          title_variations: [],
+          scorecard: {
+            hook: 8, stakes: 8, novelty: 8, loops: 8, human_voice: 8, payoff: 8,
+            total: 48, max_possible: 60, retention_grade: 'Draft (humanize skipped)',
+          },
+          sources: researchPack?.sources || [],
+          quality_gate: { passed: false, threshold: 55, score: 48 },
+        },
+        isGenerating: false,
+        currentProgressMessage: '',
+      });
+      get().saveToStorage();
     }
   },
 

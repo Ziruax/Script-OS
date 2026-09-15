@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callUnifiedLLM, parseJsonSafe } from '@/lib/gemini-server';
 import { MASTER_SCRIPT_SPEC_INSTRUCTION } from '@/lib/story-dna';
+import { getChapterCount, getSecondsPerChapter } from '@/lib/chapter-math';
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,6 +20,7 @@ export async function POST(req: NextRequest) {
       provider = 'google',
       model,
       api_key,
+      story_mode = false,
     } = await req.json();
 
     let resolvedAudience = audience;
@@ -66,20 +68,8 @@ export async function POST(req: NextRequest) {
       hook_example: `By day three, eighty-two percent of people have already made the decision to quit. None of them realize it yet.`,
     };
 
-    const getTargetChapters = (mins: number) => {
-      if (mins <= 1) return 2;
-      if (mins <= 3) return 3;
-      if (mins <= 8) return 5;
-      if (mins <= 15) return 8;
-      if (mins <= 30) return 12;
-      if (mins <= 45) return 15;
-      if (mins <= 60) return 18;
-      if (mins <= 90) return 24;
-      return Math.min(32, Math.round(24 + (mins - 90) * 0.25));
-    };
-
-    const chapterCount = getTargetChapters(Number(length_min) || 8);
-    const estSecondsPerChapter = Math.max(45, Math.round((Number(length_min) * 60) / chapterCount));
+    const chapterCount = getChapterCount(Number(length_min) || 8);
+    const estSecondsPerChapter = getSecondsPerChapter(Number(length_min) || 8, chapterCount);
 
     const architectPrompt = `${MASTER_SCRIPT_SPEC_INSTRUCTION}
 
@@ -167,135 +157,22 @@ Generate the ${chapterCount} production chapters JSON now.`;
     }
 
     if (!bestOutline || !Array.isArray(bestOutline.chapters) || bestOutline.chapters.length === 0) {
-      const fallbackChapters = [
-        {
-          id: 1,
-          act: 'Act 1: Setup',
-          title: `The 72-Hour Cliff of ${title}`,
-          goal: 'Deliver the outcome-first hook and introduce the central question without preamble',
-          open_loop: 'The hidden cognitive switching penalty that secretly sabotages 82% of attempts',
-          stakes_external: 'Wasted months of effort and zero compound growth',
-          stakes_internal: 'Corrosive cycle of personal demoralization',
-          philosophical_stakes: 'Why society conflates architectural friction with character weakness',
-          scene_micro_structure: {
-            location: 'Late night desk, illuminated monitor with timestamp 2:14 AM',
-            objective: 'Identify why a motivated individual suddenly gives up on day three',
-            friction: 'Discipline feels intact, yet execution grinds to a dead stop',
-            change: 'Shift from viewing failure as laziness to viewing it as dopamine depletion',
-            consequence: 'The viewer realizes standard advice is active poison',
-          },
-          retention_layers: {
-            layer1_what_happened: 'Eighty-two percent of people abandon their goals within two weeks.',
-            layer2_why_it_matters: 'The failure is not accidental—it is mathematically predictable.',
-            layer3_what_happens_next: 'Auditing the neurological evidence reveals what everyone missed.',
-          },
-          broll_cue: 'Macro extreme close-up of clock digits advancing; documents scattered on a desk with redacted notes.',
-          re_hook: 'And the worst part is, the warning was right in front of them.',
-          estimated_seconds: estSecondsPerChapter,
-        },
-        {
-          id: 2,
-          act: 'Act 2A: Development',
-          title: 'The Evidence Under the Surface',
-          goal: 'Present the first verified empirical anomaly that breaks conventional wisdom',
-          open_loop: 'What the university neuropsychology lab observed when friction was measured',
-          stakes_external: 'Misallocation of thousands of working hours',
-          stakes_internal: 'Chronic decision fatigue and creative paralysis',
-          philosophical_stakes: 'The myth of endless human willpower',
-          scene_micro_structure: {
-            location: 'Behavioral lab records and statistical graphs',
-            objective: 'Test whether higher discipline correlates with higher long-term consistency',
-            friction: 'The correlation turns out to be virtually zero',
-            change: 'Dismantling the belief that successful people have more self-control',
-            consequence: 'Focus redirects to environmental architecture',
-          },
-          retention_layers: {
-            layer1_what_happened: 'Studies tracked individuals relying on raw discipline versus habit cues.',
-            layer2_why_it_matters: 'Discipline scores had no bearing on 66-day habit retention.',
-            layer3_what_happens_next: 'An unexpected discovery in the data leads to the midpoint reversal.',
-          },
-          broll_cue: 'Animated motion graphic charting cognitive depletion over 72 hours; overlay of academic paper abstract.',
-          re_hook: 'That was when investigators realized they were looking at the wrong variable.',
-          estimated_seconds: estSecondsPerChapter,
-        },
-        {
-          id: 3,
-          act: 'Midpoint',
-          title: 'The Midpoint Reversal: The Inverted Mechanism',
-          goal: 'Deliver the critical revelation that completely flips the viewer perspective',
-          open_loop: 'Why trying harder actually accelerates systemic collapse',
-          stakes_external: 'Immediate risk of burnout and abandonment',
-          stakes_internal: 'The psychological shock of discovering you were fighting yourself',
-          philosophical_stakes: 'The danger of fighting natural human biology with sheer force',
-          scene_micro_structure: {
-            location: 'The decision inflection point',
-            objective: 'Explain the counter-intuitive reason high-effort individuals fail faster',
-            friction: 'Effort generates friction; friction rapidly drains dopamine reserves',
-            change: 'Realization that friction reduction, not willpower expansion, is the sole operating metric',
-            consequence: 'The entire strategy must be rebuilt from scratch',
-          },
-          retention_layers: {
-            layer1_what_happened: 'Until this moment, the audience assumed more effort equaled more results.',
-            layer2_why_it_matters: 'Effort without friction reduction increases cognitive resistance exponentially.',
-            layer3_what_happens_next: 'How did the rare 1% construct a system with zero friction?',
-          },
-          broll_cue: 'Split-screen archival demonstration: high-friction complexity collapsing vs frictionless routine succeeding.',
-          re_hook: 'Everything changes once you see this one rule.',
-          estimated_seconds: estSecondsPerChapter,
-        },
-        {
-          id: 4,
-          act: 'Act 2B: Escalation',
-          title: 'The Stress Test & The 60-Second Loop',
-          goal: 'Demonstrate real-world application through the Reddit creator breakthrough',
-          open_loop: 'How stripping 14 daily rules down to one 60-second micro-loop saved the project',
-          stakes_external: 'Total project revival versus abandonment',
-          stakes_internal: 'Overcoming the ego need for complicated, heroic effort',
-          philosophical_stakes: 'Simplicity as the ultimate form of discipline',
-          scene_micro_structure: {
-            location: 'Real creator case study and forum exchange',
-            objective: 'Test the friction reduction protocol under real pressure',
-            friction: 'Doubt and fear that a 60-second action is too small to matter',
-            change: 'Observing the compound effect of continuous non-zero days',
-            consequence: 'Permanent automaticity achieved without strain',
-          },
-          retention_layers: {
-            layer1_what_happened: 'The creator eliminated the 20-second preamble and redesigned their friction points.',
-            layer2_why_it_matters: 'The video reached 420,000 views and consistency became effortless.',
-            layer3_what_happens_next: 'What is the final philosophical principle that guarantees longevity?',
-          },
-          broll_cue: 'Screen recording of Reddit thread discussion and retention analytics graph spiking upward.',
-          re_hook: 'Which brings us to the final answer.',
-          estimated_seconds: estSecondsPerChapter,
-        },
-        {
-          id: 5,
-          act: 'Ending',
-          title: 'The Architecture of Automaticity (Resolution)',
-          goal: 'Resolve the central question with a definitive insight and stop cleanly',
-          open_loop: 'The permanent operating principle to carry forward',
-          stakes_external: 'Lifelong creative compounding and mastery',
-          stakes_internal: 'Total peace of mind and freedom from the shame cycle',
-          philosophical_stakes: 'True mastery is invisible architecture, not visible strain',
-          scene_micro_structure: {
-            location: 'Final synthesis and reflective quiet',
-            objective: 'Deliver the answer to the central story question',
-            friction: 'Resisting the urge to over-explain or add unnecessary motivational clichés',
-            change: 'Viewer transitions from confusion to absolute clarity',
-            consequence: 'Clear action and lasting resolution',
-          },
-          retention_layers: {
-            layer1_what_happened: 'The central story question is completely resolved.',
-            layer2_why_it_matters: 'Success was never about being stronger; it was about designing smarter.',
-            layer3_what_happens_next: 'The viewer is left with one unforgettable principle.',
-          },
-          broll_cue: 'Slow cinematic push-in on clean workstation; ambient lighting; text on screen fades to black.',
-          re_hook: 'Design the environment, and the consistency takes care of itself.',
-          estimated_seconds: estSecondsPerChapter,
-        },
-      ];
-
-      bestOutline = { chapters: fallbackChapters };
+      // Scalable fallback: generate exactly `chapterCount` chapters programmatically.
+      bestOutline = { chapters: buildFallbackChapters(title, chapterCount, estSecondsPerChapter) };
+    } else if (bestOutline.chapters.length < chapterCount) {
+      // LLM returned fewer chapters than requested — pad with generated chapters
+      // so the preview count matches the outline count.
+      const existing = bestOutline.chapters;
+      const padCount = chapterCount - existing.length;
+      const padStartId = (existing[existing.length - 1]?.id || 0) + 1;
+      const pad = buildFallbackChapters(title, padCount, estSecondsPerChapter).map((c, i) => ({
+        ...c,
+        id: padStartId + i,
+      }));
+      bestOutline = { chapters: [...existing, ...pad] };
+    } else if (bestOutline.chapters.length > chapterCount) {
+      // LLM returned too many — trim to the target count.
+      bestOutline = { chapters: bestOutline.chapters.slice(0, chapterCount) };
     }
 
     // Run Outline Review Council evaluation
@@ -355,8 +232,71 @@ Output JSON:
       outline: bestOutline,
       council_eval: councilEval,
       effective_angle: effectiveAngle,
+      chapter_count: chapterCount,
+      est_seconds_per_chapter: estSecondsPerChapter,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Failed to generate outline' }, { status: 500 });
   }
+}
+
+/**
+ * Build N fallback chapters programmatically. Scales to any requested count
+ * so the outline always matches the preview (never a fixed 5-chapter stub).
+ * Distributes chapters across a 3-act structure (Act 1 ~25%, Act 2 ~50%, Act 3 ~25%).
+ */
+function buildFallbackChapters(title: string, count: number, estSecondsPerChapter: number) {
+  const act1End = Math.max(1, Math.round(count * 0.25));
+  const act2End = Math.min(count - 1, act1End + Math.round(count * 0.5));
+  const midpointIdx = Math.round((act1End + act2End) / 2);
+
+  const beats = [
+    { label: 'Setup & Hook', goal: 'Open with the outcome-first hook and establish the central stakes.', act: 'Act 1: Setup' },
+    { label: 'The Evidence', goal: 'Present the first verified anomaly that breaks conventional wisdom.', act: 'Act 2A: Development' },
+    { label: 'The Midpoint Reversal', goal: 'Deliver the critical revelation that flips the viewer\u2019s perspective.', act: 'Midpoint' },
+    { label: 'Escalation & Stress Test', goal: 'Show real-world application under pressure.', act: 'Act 2B: Escalation' },
+    { label: 'Resolution', goal: 'Resolve the central question with a definitive insight and stop cleanly.', act: 'Act 3: Resolution' },
+    { label: 'Context & Complication', goal: 'Deepen the stakes with new context.', act: 'Act 2A: Development' },
+    { label: 'Failed Attempt', goal: 'Show the protagonist\u2019s first failed approach.', act: 'Act 2B: Escalation' },
+    { label: 'The Hidden Variable', goal: 'Surface the unseen mechanism nobody accounted for.', act: 'Act 2A: Development' },
+    { label: 'Consequence & Reversal', goal: 'The cost of ignoring the reversal becomes undeniable.', act: 'Act 2B: Escalation' },
+    { label: 'The Operating Principle', goal: 'Distill the takeaway into one actionable rule.', act: 'Act 3: Resolution' },
+    { label: 'Before / After Contrast', goal: 'Demonstrate the transformation clearly.', act: 'Act 2B: Escalation' },
+    { label: 'The Deeper Why', goal: 'Connect the principle to a universal truth.', act: 'Act 3: Resolution' },
+    { label: 'Warning & Misread', goal: 'Warn about the most common way to misread the lesson.', act: 'Act 2B: Escalation' },
+    { label: 'Closing Image', goal: 'End on one quiet, specific image that earns the journey.', act: 'Act 3: Resolution' },
+  ];
+
+  const chapters = [];
+  for (let i = 0; i < count; i++) {
+    const beat = beats[i % beats.length];
+    const isMidpoint = i === midpointIdx - 1;
+    const act = isMidpoint ? 'Midpoint' : i < act1End ? 'Act 1: Setup' : i < act2End ? (i < midpointIdx ? 'Act 2A: Development' : 'Act 2B: Escalation') : 'Act 3: Resolution';
+    chapters.push({
+      id: i + 1,
+      act,
+      title: `${beat.label}: ${title}`.slice(0, 80),
+      goal: beat.goal,
+      open_loop: `The specific question this chapter opens (resolved in a later chapter).`,
+      stakes_external: 'Wasted effort and stalled progress',
+      stakes_internal: 'Demoralization and self-doubt',
+      philosophical_stakes: 'The hidden cost of the default approach',
+      scene_micro_structure: {
+        location: 'A specific, concrete setting that grounds the beat',
+        objective: 'What this scene dramatizes',
+        friction: 'The specific obstacle in this beat',
+        change: 'The value shift across this scene',
+        consequence: 'What this beat sets up for the next',
+      },
+      retention_layers: {
+        layer1_what_happened: 'The concrete event of this chapter.',
+        layer2_why_it_matters: 'Why it changes the viewer\u2019s understanding.',
+        layer3_what_happens_next: 'The open question it raises.',
+      },
+      broll_cue: 'A specific visual that grounds the beat.',
+      re_hook: 'The line that pulls the viewer into the next chapter.',
+      estimated_seconds: estSecondsPerChapter,
+    });
+  }
+  return chapters;
 }

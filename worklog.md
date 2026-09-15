@@ -533,3 +533,49 @@ Unresolved issues / next-phase priorities:
 - The outline/generate route for Story Mode is implemented in story-mode.ts (STORY_OUTLINE_SYSTEM_PROMPT + StoryBeat) but the /api/outline/generate route itself wasn't branched yet — it still uses the documentary chapter format. Should branch it to emit `beats` (scenes) instead of `chapters` when story_mode. Priority for next round.
 - The script/humanize + script/qa routes aren't branched for Story Mode yet — they use the documentary scorecard (hook/stakes/novelty/loops/human-voice/payoff). Should branch to the story scorecard (tension/voice/emotional-arc/show-don't-tell/subtext/thematic-payoff). Priority for next round.
 - Could add Story-Mode-specific templates (e.g. "Personal Narrative", "Dramatic Short", "Biography Arc") that pre-fill storyMode=true + storytelling-appropriate content.
+
+---
+Task ID: 12 (user-reported: fundamental bugs — chapter/word/angles/script-copy issues)
+Agent: main (Z.ai Code)
+Task: User reported: "conflict in words and chapters along with outline generation e.g i selected 1 hour duration and according to that chapters where shown to me are 10 but only 5 in outline a lot of conflicts also angles does not providing all details first fix timing issues and word count problem then other related along with that not getting complete generated script like copy tts copy full script and other things a lot of fundamental issues".
+
+Work Log:
+- Root cause analysis: the outline route's `getTargetChapters(60)` returned 18, but the FALLBACK (when the LLM failed/truncated) always returned 5 hardcoded chapters — regardless of the requested length. So the preview said 18 but the outline had 5. The word-count math was self-consistent but broke when the chapter count was wrong. Story Mode angles had different fields (protagonist_wound, want_vs_need, etc.) that OutlineView didn't render. And if the humanize step failed, there was no `finalResult` so the copy/export buttons didn't appear.
+
+FIX 1 — Single shared chapter-count formula (the root of the mismatch):
+- New `src/lib/chapter-math.ts` with `getChapterCount(mins)`, `getTotalWords(mins)`, `getWordsPerChapter(mins, count)`, `getSecondsPerChapter(mins, count)`, `WORDS_PER_MINUTE=150`. ONE source of truth.
+- Capped the chapter count for LLM reliability: 1m→2, 3m→3, 8m→5, 15m→6, 30m→8, 45m→9, 60m→10, 90m→12, 120m→14 (was: 60m→18 which was too many for a single JSON response).
+- WizardView preview now uses `getChapterCount(lengthMin)` (was a local `getEstChapters` with different numbers).
+- `/api/outline/generate` now uses `getChapterCount()` + `getSecondsPerChapter()` (was a local `getTargetChapters`).
+- `/api/script/section/generate` now uses `getWordsPerChapter()` + `getSecondsPerChapter()` + `getChapterCount()` (was inline math).
+- Verified live: Wizard preview for 60min shows "CHAPTERS 10 sections" + outline generation returns exactly 10 chapters + chapter_count field = 10. The numbers now AGREE.
+
+FIX 2 — Scalable outline fallback (was always 5 hardcoded chapters):
+- Replaced the 5-chapter hardcoded fallback in `/api/outline/generate` with a `buildFallbackChapters(title, count, estSeconds)` function that generates exactly `count` chapters, distributed across a 3-act structure (Act 1 ~25%, Act 2 ~50% with a midpoint, Act 3 ~25%). Uses 14 reusable beat templates cycled by index.
+- Added post-LLM padding: if the LLM returns FEWER chapters than requested, pad with generated chapters so the count always matches. If it returns TOO MANY, trim to the target. So the outline ALWAYS has exactly the requested chapter count.
+
+FIX 3 — Story Mode angles now render all fields:
+- OutlineView angle cards now render BOTH documentary fields (unique_statement, why_different, hook_example) AND Story Mode fields (protagonist_wound, want_vs_need, emotional_promise, opening_image). The card detects which schema by checking for `protagonist_wound` and renders the appropriate block. Story Mode fields have distinct colored labels (amber wound, blue want/need, emerald promise, purple opening image).
+- Verified live: Story Mode angles return all 4 storytelling fields; OutlineView now displays them.
+
+FIX 4 — Complete generated script + copy/TTS always available:
+- When the humanize step fails (LLM error), the store now assembles a fallback `finalResult` from the generated chapters (stitches all chapter script_text with `--- CHAPTER N: title ---` headers) so the copy/export buttons ALWAYS appear. Previously, a humanize failure left the user with chapters but no way to copy the full script.
+- The fallback scorecard is marked "Draft (humanize skipped)" so the user knows.
+- Copy Full Script (`handleCopy(finalResult.final_script)`), Copy Voiceover TTS (`getCleanNarrationText` strips bracketed cues), and the .TXT/.MD/.SRT/.PDF exports all now work even when humanize fails.
+
+VERIFICATION:
+- `bun run lint` → clean (0 errors, 0 warnings).
+- Dev server: Next.js 16.3.5, ready, zero errors.
+- Live API test: POST /api/outline/generate with length_min=60 → 200, returned exactly 10 chapters (chapter_count=10, est_seconds_per_chapter=360). Wizard preview shows "CHAPTERS 10 sections" for 60min — the numbers AGREE.
+- Live API test: POST /api/angles/generate with story_mode=true → 200, all 4 Story Mode fields present (protagonist_wound, want_vs_need, emotional_promise, opening_image).
+- agent-browser QA: Wizard at 60min shows ~10 chapters · ~8,400 words in the length section + "CHAPTERS 10 sections" in the preview card — consistent end-to-end.
+
+Stage Summary:
+- Fixed all 4 fundamental issues the user reported: (1) chapter count now consistent between preview + outline (single shared formula, 60min→10 chapters everywhere), (2) word count math now agrees because the chapter count agrees, (3) Story Mode angles now render all their fields (wound/want-need/emotional-promise/opening-image) in OutlineView, (4) the full generated script + Copy/TTS/exports are always available even when the humanize step fails (fallback assembles from chapters).
+- All changes lint-clean and verified end-to-end via agent-browser + live API calls.
+
+Unresolved issues / next-phase priorities:
+- The outline generation could still occasionally return fewer chapters than requested if the LLM truncates a large JSON response — the padding fix handles this, but could also split the outline into 2 LLM calls (Act 1+2, then Act 3) for very long videos.
+- The humanize route isn't branched for Story Mode yet (still uses the documentary scorecard: hook/stakes/novelty/loops/human-voice/payoff). Should branch to the story scorecard (tension/voice/emotional-arc/show-don't-tell/subtext/thematic-payoff) when story_mode. Priority for next round.
+- The script/qa route isn't branched for Story Mode either. Priority for next round.
+- Could add a live "chapter count" readout in the Script Studio header so users see the expected vs actual chapter count during generation.

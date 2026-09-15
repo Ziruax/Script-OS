@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { callUnifiedLLM, parseJsonSafe } from '@/lib/gemini-server';
 import { MASTER_SCRIPT_SPEC_INSTRUCTION } from '@/lib/story-dna';
 import { STORY_SECTION_SYSTEM_PROMPT } from '@/lib/story-mode';
+import { getWordsPerChapter, getSecondsPerChapter, getChapterCount } from '@/lib/chapter-math';
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,15 +26,15 @@ export async function POST(req: NextRequest) {
         ? previous_chapter_text.trim().split('\n').slice(-4).join('\n')
         : 'Opening of the Video';
 
-    // Calculate dynamic word target based on requested minutes and chapter count
+    // Calculate dynamic word target using the SHARED chapter-math utility so
+    // the per-chapter word count always agrees with the Wizard preview + outline.
     const videoMins = Math.max(1, Number(length_min) || 8);
     const chapterCount = Math.max(
       1,
-      Number(total_chapters) || (Array.isArray(full_outline?.chapters) ? full_outline.chapters.length : 5)
+      Number(total_chapters) || (Array.isArray(full_outline?.chapters) ? full_outline.chapters.length : getChapterCount(videoMins))
     );
-    // Standard YouTube spoken narration is 140-160 words per minute (~150 wpm)
-    const targetChapterWords = Math.max(180, Math.round((videoMins * 150) / chapterCount));
-    const estSeconds = Math.max(45, chapter.estimated_seconds || Math.round((targetChapterWords / 150) * 60));
+    const targetChapterWords = getWordsPerChapter(videoMins, chapterCount);
+    const estSeconds = chapter.estimated_seconds || getSecondsPerChapter(videoMins, chapterCount);
 
     // ── Story Mode branch: scene-writing with storytelling values ────────────
     if (story_mode) {
