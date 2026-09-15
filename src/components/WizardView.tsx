@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Zap,
   Film,
+  GitBranch,
 } from 'lucide-react';
 import {
   CONTENT_TYPES,
@@ -29,6 +30,7 @@ import {
   EmotionalEngine,
 } from '@/lib/story-dna';
 import { WIZARD_TEMPLATES, WizardTemplate } from '@/lib/templates';
+import { useToast } from '@/components/Toast';
 
 export default function WizardView() {
   const {
@@ -57,7 +59,9 @@ export default function WizardView() {
     startFullGeneration,
     setShowHelpModal,
     setActiveTab,
+    saveCurrentAsProject,
   } = useScriptOSStore();
+  const { toast } = useToast();
 
   const lengthPresets = [1, 3, 8, 15, 30, 45, 60, 90, 120];
 
@@ -106,14 +110,31 @@ export default function WizardView() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowHelpModal(true)}
-          className="px-3 py-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 rounded-lg flex items-center gap-1.5 shrink-0 self-start transition-colors"
-        >
-          <HelpCircle className="w-4 h-4 text-neutral-500" />
-          Onboarding Guide
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              const name = title ? `${title.slice(0, 50)} (branch)` : 'Quick Branch';
+              saveCurrentAsProject(name);
+              toast('Workspace branched', 'success', `"${name}" saved to your library — edit freely without losing the original`);
+            }}
+            disabled={!title.trim()}
+            className="px-3 py-1.5 text-xs font-medium text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-950/60 rounded-lg flex items-center gap-1.5 self-start transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Save a copy of the current workspace as a new project so you can experiment without losing the original"
+          >
+            <GitBranch className="w-4 h-4 text-purple-500" />
+            <span className="hidden sm:inline">Quick Branch</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowHelpModal(true)}
+            className="px-3 py-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 rounded-lg flex items-center gap-1.5 self-start transition-colors"
+          >
+            <HelpCircle className="w-4 h-4 text-neutral-500" />
+            Onboarding Guide
+          </button>
+        </div>
       </div>
 
       {/* Quick Start Templates */}

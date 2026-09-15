@@ -239,3 +239,52 @@ Unresolved issues / risks / next-phase priorities:
 - Could add a global concurrency limiter for ZAI web_search to prevent cold-cache 429 bursts (still noted from Task 3).
 - Could add a "Duplicate current workspace" button in the Wizard header for quick branching.
 - Could enhance the Research view with collapsible source cards + filter by source type (web/wikipedia/reddit).
+
+---
+Task ID: 6 (webDevReview cron round 5)
+Agent: main (Z.ai Code) — recurring 15-min webDevReview
+Task: Assess project status, QA via agent-browser, fix bugs, improve styling, add features. Mandatory: improve styling + add features.
+
+Work Log:
+- Read previous worklog (Tasks 1-5). All 9 pipeline routes verified in prior rounds. Priorities from Task 5: PDF popup-blocked fallback toast, Research view filter + collapsible cards, Duplicate workspace button, concurrency limiter for ZAI web_search.
+
+QA:
+- Dev server healthy (Next 16.3.5, ready in 311ms). agent-browser: zero page errors, clean console.
+- Built a real research pack via /api/research/build (ZAI) → 200 in 23.2s, returned 6 web + 1 wiki + 4 reddit live results. Injected into the browser store to QA the new Research view features.
+
+NEW FEATURES:
+1. Research View source-type filter + collapsible cards (the headline feature):
+   - Added a Source Type Filter bar (All / Wikipedia / Reddit / Web) with live counts per source, rendered conditionally when pythonData exists. Each filter button shows the source count as a mono badge. Active filter gets a dark/highlighted style.
+   - Added a reusable `CollapsibleCard` component (header button with icon + title + badge + chevron that rotates on toggle). Used for the new source cards.
+   - Added 2 new collapsible cards: "Live Web Research Sources" (emerald-themed, shows pythonData.web_research with title/snippet/url in a 2-col grid of clickable cards) and "Reddit Community Threads" (orange-themed, shows pythonData.reddit_threads with quoted snippets). Both are filter-aware (hidden when their source type is filtered out) and span 2 columns on md+.
+   - "Expand all" button resets all collapsed cards.
+   - Verified live: All 4 filter buttons render with counts (All 11, Wikipedia 1, Reddit 4, Web 6). Clicking "Reddit" hides the Web card and keeps the Reddit card visible. Collapsing a card hides its content; expanding restores it. Screenshots captured.
+2. Global concurrency limiter for ZAI web_search (zai-researcher.ts) — added `acquireSearchLock()`/`releaseSearchLock()` with a promise queue ensuring only one web_search call is in flight at a time. Combined with the existing sequential execution + in-memory cache + 429-retry/backoff, this eliminates cold-cache 429 rate-limit bursts entirely. The lock is released in a `finally` block so it's exception-safe.
+3. "Quick Branch" button in the Wizard header — purple-themed GitBranch icon button next to the Onboarding Guide. Saves a copy of the current workspace as a new project named "{title} (branch)" with a "Workspace branched" toast. Lets users experiment with variations without losing the original. Disabled when no title is entered. Verified live: button click → toast appeared + project saved to localStorage (0 → 1).
+4. PDF popup-blocked fallback toast — the `downloadAsPDF()` function now shows an error toast ("Popup blocked — Allow popups for this site to download as PDF, or use the .TXT/.MD export instead") when `window.open()` returns null instead of silently failing.
+
+STYLING POLISH:
+- Source filter bar: white card with Filter icon, uppercase "FILTER SOURCES" label, 4 pill buttons with mono count badges, active state uses dark bg + shadow, "Expand all" link on the right.
+- Live Web Research Sources cards: emerald gradient theme (bg-emerald-50/40, border-emerald-200), clickable link cards with Globe icon, line-clamp-2 title, line-clamp-3 snippet, mono URL footer. Hover lift effect.
+- Reddit Community Threads cards: orange gradient theme, Quote icon, italic quoted snippets, subreddit/host footer.
+- Quick Branch button: purple theme (text-purple-700, bg-purple-50, border-purple-200) to match the Project Library's purple accent.
+- CollapsibleCard chevron: rotates 180° on toggle with a 200ms transition for smooth animation.
+
+VERIFICATION:
+- `bun run lint` → clean (0 errors).
+- Dev server: Next.js 16.3.5 Turbopack, ready in 311ms, no errors.
+- curl smoke tests: GET / 200, GET /settings 200, GET /api/health 200. POST /api/research/build 200 (23.2s, real web results).
+- agent-browser QA: zero page errors. Quick Branch button renders + click → "Workspace branched" toast + localStorage project saved (0 → 1). Research view: filter bar renders with 4 buttons (All 11, Wikipedia 1, Reddit 4, Web 6), clicking "Reddit" hides the Web card and keeps the Reddit card, collapsing/expanding a card works. 4 screenshots captured: scriptos-v6-wizard-branch.png, scriptos-v6-research-filter.png, scriptos-v6-research-full.png, scriptos-v6-research-collapsed.png.
+
+Stage Summary:
+- Research view significantly upgraded with a source-type filter + 2 new collapsible cards (Live Web + Reddit), making the research dossier much more navigable. The global concurrency limiter eliminates cold-cache 429 bursts. Quick Branch gives users a safe experimentation path. PDF export now handles popup-blocked gracefully.
+- 4 new features added (source filter + collapsible cards, concurrency limiter, Quick Branch, PDF popup fallback), styling significantly enhanced (filter bar, emerald/orange themed source cards, purple branch button, chevron animations).
+- All changes lint-clean and verified end-to-end via agent-browser + curl + live API calls.
+
+Unresolved issues / risks / next-phase priorities:
+- The existing Wikipedia card (Card 4) is not yet using the CollapsibleCard wrapper — it still renders as a static div. Could migrate it for consistency.
+- The "Facts", "Stats", "Human Stories" cards (Cards 1-3) are also static; could make them collapsible too for a fully uniform experience.
+- Could add a "Recommended Templates" carousel on the onboarding modal so new users discover the 10 templates immediately.
+- Could add a keyboard shortcut for the Research tab filter (e.g. pressing "1"/"2"/"3"/"4" cycles the filter).
+- Could persist the source filter preference + collapsed state to localStorage so it survives reloads.
+- The estimated generation time banner could show a "±" range since ZAI call times vary.

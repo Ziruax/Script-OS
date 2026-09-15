@@ -295,7 +295,10 @@ export default function ScriptStudioView() {
       .replace(/\n/g, '<br/>');
     const score = finalResult.scorecard;
     const win = window.open('', '_blank', 'width=900,height=700');
-    if (!win) return;
+    if (!win) {
+      toast('Popup blocked', 'error', 'Allow popups for this site to download as PDF, or use the .TXT/.MD export instead');
+      return;
+    }
     win.document.write(`<!DOCTYPE html><html><head><title>${safeTitle}</title>
       <meta charset="utf-8"/>
       <style>

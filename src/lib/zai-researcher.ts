@@ -51,6 +51,27 @@ const TIMEOUT = (ms: number) => new Promise<never>((_, reject) => setTimeout(() 
 const _searchCache = new Map<string, { ts: number; data: WebResult[] }>();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
+// Global concurrency limiter — ensures only one web_search call is in flight at a time,
+// preventing cold-cache 429 rate-limit bursts when multiple research queries fire together.
+let _searchInFlight: Promise<WebResult[]> | null = null;
+let _searchQueue: Array<() => void> = [];
+
+function acquireSearchLock(): Promise<void> {
+  if (!_searchInFlight) {
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve) => {
+    _searchQueue.push(resolve);
+  });
+}
+
+function releaseSearchLock() {
+  const next = _searchQueue.shift();
+  if (next) {
+    next();
+  }
+}
+
 async function searchOnce(query: string, num: number): Promise<WebResult[]> {
   const cacheKey = `${query}::${num}`;
   const cached = _searchCache.get(cacheKey);
@@ -58,39 +79,44 @@ async function searchOnce(query: string, num: number): Promise<WebResult[]> {
     return cached.data;
   }
 
-  // Retry up to 2 times on rate-limit (429) with backoff
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const zai = await getZai();
-      const results: any[] = await Promise.race([
-        zai.functions.invoke('web_search', { query, num }),
-        TIMEOUT(10000),
-      ]);
-      if (!Array.isArray(results)) {
-        const empty: WebResult[] = [];
-        _searchCache.set(cacheKey, { ts: Date.now(), data: empty });
-        return empty;
+  await acquireSearchLock();
+  try {
+    // Retry up to 2 times on rate-limit (429) with backoff
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const zai = await getZai();
+        const results: any[] = await Promise.race([
+          zai.functions.invoke('web_search', { query, num }),
+          TIMEOUT(10000),
+        ]);
+        if (!Array.isArray(results)) {
+          const empty: WebResult[] = [];
+          _searchCache.set(cacheKey, { ts: Date.now(), data: empty });
+          return empty;
+        }
+        const mapped: WebResult[] = results.slice(0, num).map((r) => ({
+          title: r.name || r.title || '(untitled)',
+          url: r.url || '',
+          snippet: r.snippet || '',
+          host_name: r.host_name || '',
+          source_type: 'web',
+        }));
+        _searchCache.set(cacheKey, { ts: Date.now(), data: mapped });
+        return mapped;
+      } catch (err: any) {
+        const msg = String(err?.message || err);
+        const isRateLimit = msg.includes('429') || msg.includes('Too many requests');
+        if (isRateLimit && attempt < 2) {
+          await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)));
+          continue;
+        }
+        return [];
       }
-      const mapped: WebResult[] = results.slice(0, num).map((r) => ({
-        title: r.name || r.title || '(untitled)',
-        url: r.url || '',
-        snippet: r.snippet || '',
-        host_name: r.host_name || '',
-        source_type: 'web',
-      }));
-      _searchCache.set(cacheKey, { ts: Date.now(), data: mapped });
-      return mapped;
-    } catch (err: any) {
-      const msg = String(err?.message || err);
-      const isRateLimit = msg.includes('429') || msg.includes('Too many requests');
-      if (isRateLimit && attempt < 2) {
-        await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)));
-        continue;
-      }
-      return [];
     }
+    return [];
+  } finally {
+    releaseSearchLock();
   }
-  return [];
 }
 
 /**

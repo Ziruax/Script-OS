@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useScriptOSStore } from '@/lib/store';
 import {
   Search,
@@ -18,7 +18,56 @@ import {
   Sparkles,
   Plus,
   Compass,
+  ChevronDown,
+  Filter,
+  Quote,
 } from 'lucide-react';
+
+type SourceFilter = 'all' | 'wikipedia' | 'reddit' | 'web';
+
+// Reusable collapsible card wrapper
+function CollapsibleCard({
+  id,
+  collapsed,
+  onToggle,
+  headerIcon: Icon,
+  iconColor,
+  title,
+  badge,
+  children,
+  className = '',
+}: {
+  id: string;
+  collapsed: boolean;
+  onToggle: () => void;
+  headerIcon: any;
+  iconColor: string;
+  title: string;
+  badge?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`p-5 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-sm ${className}`}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between gap-2 text-left"
+        aria-expanded={!collapsed}
+      >
+        <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+          <Icon className={`w-4 h-4 ${iconColor}`} />
+          {title}
+        </div>
+        <div className="flex items-center gap-2">
+          {badge}
+          <ChevronDown className={`w-4 h-4 text-neutral-400 transition-transform duration-200 ${collapsed ? '' : 'rotate-180'}`} />
+        </div>
+      </button>
+      {!collapsed && <div className="mt-3 space-y-3">{children}</div>}
+    </div>
+  );
+}
 
 export default function ResearchView() {
   const {
@@ -34,6 +83,10 @@ export default function ResearchView() {
   const [customSearchQuery, setCustomSearchQuery] = useState('');
   const [isSearchingCustom, setIsSearchingCustom] = useState(false);
   const [customSearchResults, setCustomSearchResults] = useState<any | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+  const [collapsedCards, setCollapsedCards] = useState<Record<string, boolean>>({});
+
+  const toggleCard = (id: string) => setCollapsedCards((p) => ({ ...p, [id]: !p[id] }));
 
   const handleCustomSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,6 +234,49 @@ export default function ResearchView() {
           </div>
         )}
       </div>
+
+      {/* Source Type Filter + Collapsible Controls */}
+      {pythonData && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Filter className="w-3.5 h-3.5 text-neutral-400" />
+            <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Filter sources:</span>
+            {([
+              { id: 'all', label: 'All', count: (pythonData.wikipedia_count || 0) + (pythonData.reddit_count || 0) + (pythonData.web_count || 0), tint: 'bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900' },
+              { id: 'wikipedia', label: 'Wikipedia', count: pythonData.wikipedia_count || 0, tint: 'bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-900' },
+              { id: 'reddit', label: 'Reddit', count: pythonData.reddit_count || 0, tint: 'bg-orange-100 dark:bg-orange-950 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-900' },
+              { id: 'web', label: 'Web', count: pythonData.web_count || 0, tint: 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900' },
+            ] as const).map((f) => {
+              const isActive = sourceFilter === f.id;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setSourceFilter(f.id as SourceFilter)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                    isActive
+                      ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 shadow-sm'
+                      : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+                  }`}
+                >
+                  {f.label}
+                  <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-mono ${
+                    isActive ? 'bg-white/20' : 'bg-neutral-200 dark:bg-neutral-700'
+                  }`}>{f.count}</span>
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => setCollapsedCards({})}
+            className="text-[10px] text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+            title="Expand all cards"
+          >
+            Expand all
+          </button>
+        </div>
+      )}
 
       {/* Grid of dossier cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -342,6 +438,80 @@ export default function ResearchView() {
               ))}
             </div>
           </div>
+        )}
+
+        {/* Card 5: Live Web Research Sources — collapsible + filter-aware */}
+        {pythonData && (sourceFilter === 'all' || sourceFilter === 'web') && pythonData.web_research && pythonData.web_research.length > 0 && (
+          <CollapsibleCard
+            id="web-sources"
+            collapsed={!!collapsedCards['web-sources']}
+            onToggle={() => toggleCard('web-sources')}
+            headerIcon={Globe}
+            iconColor="text-emerald-500"
+            title="Live Web Research Sources"
+            badge={<span className="px-2 py-0.5 rounded text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-mono">{pythonData.web_research.length} results</span>}
+            className="md:col-span-2"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {pythonData.web_research.map((w, i) => (
+                <a
+                  key={i}
+                  href={w.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block p-3.5 rounded-xl bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 text-xs space-y-1.5 hover:border-emerald-400 dark:hover:border-emerald-700 hover:shadow-sm transition-all"
+                >
+                  <div className="font-bold text-emerald-950 dark:text-emerald-200 text-sm flex items-start gap-1.5">
+                    <Globe className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                    <span className="line-clamp-2">{w.title}</span>
+                  </div>
+                  {w.snippet && (
+                    <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed line-clamp-3">{w.snippet}</p>
+                  )}
+                  <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono truncate flex items-center gap-1">
+                    {w.url} <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                  </div>
+                </a>
+              ))}
+            </div>
+          </CollapsibleCard>
+        )}
+
+        {/* Card 6: Reddit Community Threads — collapsible + filter-aware */}
+        {pythonData && (sourceFilter === 'all' || sourceFilter === 'reddit') && pythonData.reddit_threads && pythonData.reddit_threads.length > 0 && (
+          <CollapsibleCard
+            id="reddit-sources"
+            collapsed={!!collapsedCards['reddit-sources']}
+            onToggle={() => toggleCard('reddit-sources')}
+            headerIcon={Quote}
+            iconColor="text-orange-500"
+            title="Reddit Community Threads (Human Stories)"
+            badge={<span className="px-2 py-0.5 rounded text-[10px] bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300 font-mono">{pythonData.reddit_threads.length} threads</span>}
+            className="md:col-span-2"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {pythonData.reddit_threads.map((r, i) => (
+                <a
+                  key={i}
+                  href={r.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block p-3.5 rounded-xl bg-orange-50/40 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/40 text-xs space-y-1.5 hover:border-orange-400 dark:hover:border-orange-700 hover:shadow-sm transition-all"
+                >
+                  <div className="font-bold text-orange-950 dark:text-orange-200 text-sm flex items-start gap-1.5">
+                    <Quote className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-0.5" />
+                    <span className="line-clamp-2">{r.title}</span>
+                  </div>
+                  {r.snippet && (
+                    <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed italic line-clamp-3">&ldquo;{r.snippet}&rdquo;</p>
+                  )}
+                  <div className="text-[10px] text-orange-600 dark:text-orange-400 font-mono truncate flex items-center gap-1">
+                    {r.subreddit || r.host_name || r.url} <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                  </div>
+                </a>
+              ))}
+            </div>
+          </CollapsibleCard>
         )}
       </div>
 
