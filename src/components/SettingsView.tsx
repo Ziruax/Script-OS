@@ -11,8 +11,6 @@ import {
   CheckCircle2,
   AlertCircle,
   ExternalLink,
-  Sliders,
-  Shield,
   Layers,
   Sparkles,
 } from 'lucide-react';
@@ -42,7 +40,7 @@ export default function SettingsView() {
 
   const connectionStatusBlock = connectionStatus ? (
     <div
-      className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+      className={`p-2.5 rounded-lg text-xs flex items-center gap-2 ${
         connectionStatus.success
           ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
           : 'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
@@ -58,13 +56,13 @@ export default function SettingsView() {
   ) : null;
 
   const providers = [
-    { id: 'zai', name: 'Z.AI GLM', desc: 'Zero-config • No API key needed (Default)', freeTier: true, recommended: true },
-    { id: 'google', name: 'Google Gemini', desc: 'Free high-rate tier', freeTier: true },
-    { id: 'openai', name: 'OpenAI', desc: 'GPT-4o, GPT-4o Mini', freeTier: false },
-    { id: 'claude', name: 'Anthropic Claude', desc: 'Claude 3.5 Sonnet, Haiku', freeTier: false },
-    { id: 'deepseek', name: 'DeepSeek', desc: 'DeepSeek V3, DeepSeek R1', freeTier: false },
-    { id: 'xai', name: 'xAI Grok', desc: 'Grok 2, Grok 2 Mini', freeTier: false },
-    { id: 'openrouter', name: 'OpenRouter', desc: 'Aggregator (All open & closed models)', freeTier: false },
+    { id: 'zai', name: 'Z.AI GLM', desc: 'Zero-config · no key needed', recommended: true },
+    { id: 'google', name: 'Google Gemini', desc: 'Free high-rate tier' },
+    { id: 'openai', name: 'OpenAI', desc: 'GPT-4o, GPT-4o Mini' },
+    { id: 'claude', name: 'Anthropic Claude', desc: 'Claude 3.5 Sonnet, Haiku' },
+    { id: 'deepseek', name: 'DeepSeek', desc: 'DeepSeek V3, R1' },
+    { id: 'xai', name: 'xAI Grok', desc: 'Grok 2, Grok 2 Mini' },
+    { id: 'openrouter', name: 'OpenRouter', desc: 'Aggregator (all models)' },
   ];
 
   const filteredModels = availableModels.filter(
@@ -74,107 +72,96 @@ export default function SettingsView() {
   );
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-200">
-      {/* Page Header */}
+    <div className="space-y-6 animate-slide-up">
+      {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100 flex items-center gap-2.5">
-          <Key className="w-6 h-6 text-blue-500" />
-          Settings & Local Hardware Config
-        </h2>
+        <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">Settings</h1>
         <p className="text-sm text-neutral-500 mt-1">
-          ScriptOS runs 100% locally on your machine. Configure your external LLM provider brain and local vector mode.
+          Configure your LLM provider and local search mode.
         </p>
       </div>
 
-      {/* Hardware / RAM Status Banner */}
-      <div className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/50 dark:bg-emerald-950/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      {/* Hardware profile */}
+      <div className="surface rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
+          <div className="p-2.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300">
             <Cpu className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-sm font-semibold text-emerald-950 dark:text-emerald-200 flex items-center gap-2">
-              Hardware Profile: {ramInfo.mode_label}
-            </div>
-            <div className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
-              Available Memory: ~{ramInfo.total_gb.toFixed(1)} GB. Zero GPU required. CPU-only NLP optimizations active.
+            <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">{ramInfo.mode_label}</div>
+            <div className="text-xs text-neutral-500 mt-0.5">
+              ~{ramInfo.total_gb.toFixed(1)} GB RAM · zero GPU required
             </div>
           </div>
         </div>
-
-        <div className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-100 uppercase tracking-wide">
-          100% Local CPU Mode
-        </div>
+        <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 uppercase tracking-wider shrink-0 self-start sm:self-auto">
+          Local CPU Mode
+        </span>
       </div>
 
-      {/* Provider Selector */}
-      <div className="space-y-4">
-        <label className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 flex items-center justify-between">
-          <span>1. Select LLM Provider Brain</span>
-          <span className="text-xs font-normal text-neutral-500">
-            Z.AI needs no key • Others require your own key, stored locally
-          </span>
-        </label>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+      {/* Provider selector */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+            LLM Provider
+          </h2>
+          <span className="text-[11px] text-neutral-400">Z.AI needs no key · others require your own</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
           {providers.map((p) => {
             const isSelected = provider === p.id;
-            const isZai = p.id === 'zai';
+            const pIsZai = p.id === 'zai';
             return (
               <button
                 key={p.id}
                 type="button"
                 onClick={() => updateSettings({ provider: p.id as any })}
-                className={`relative p-3.5 rounded-xl border text-left transition-all overflow-hidden ${
+                className={`relative p-3 rounded-xl border text-left transition-all ${
                   isSelected
-                    ? isZai
-                      ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/30 dark:border-emerald-500 shadow-md'
-                      : 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/30 dark:border-blue-500 shadow-sm'
+                    ? pIsZai
+                      ? 'border-emerald-500 dark:border-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-sm'
+                      : 'border-emerald-500 dark:border-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-sm'
                     : 'border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:border-neutral-300 dark:hover:border-neutral-700'
                 }`}
               >
                 {p.recommended && (
                   <span className="absolute top-2 right-2 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-600 text-white">
-                    Recommended
+                    Default
                   </span>
                 )}
-                <div className="flex items-center justify-between pr-16">
-                  <span className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">
-                    {p.name}
-                  </span>
-                  {p.freeTier && !p.recommended && (
-                    <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300">
-                      Free Tier
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-neutral-500 mt-1">{p.desc}</p>
+                <div className="font-semibold text-sm text-neutral-900 dark:text-neutral-100 pr-16">{p.name}</div>
+                <p className="text-[11px] text-neutral-500 mt-0.5">{p.desc}</p>
+                {isSelected && (
+                  <div className="absolute bottom-2 right-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                  </div>
+                )}
               </button>
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {/* API Key Input & Model Fetching — hidden for ZAI (zero-config) */}
-      {provider === 'zai' ? (
-        <div className="p-5 rounded-2xl border border-emerald-200 dark:border-emerald-900/60 bg-gradient-to-br from-emerald-50/60 to-teal-50/40 dark:from-emerald-950/20 dark:to-teal-950/10 space-y-3 shadow-sm">
+      {/* ZAI zero-config panel OR API key panel */}
+      {isZai ? (
+        <section className="surface rounded-2xl p-5 space-y-3">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
-              <Sparkles className="w-5 h-5" />
+            <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300">
+              <Sparkles className="w-4 h-4" />
             </div>
             <div>
-              <div className="text-sm font-semibold text-emerald-950 dark:text-emerald-200">Z.AI GLM — Zero-Config Mode Active</div>
-              <div className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
-                No API key required. The Z.AI GLM model runs via the system-managed <code className="text-[10px] bg-emerald-100 dark:bg-emerald-900/50 px-1 py-0.5 rounded">z-ai-web-dev-sdk</code>.
+              <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Z.AI GLM — Zero-Config Active</div>
+              <div className="text-xs text-neutral-500 mt-0.5">
+                No API key required. Runs via the system-managed <code className="text-[10px] bg-neutral-100 dark:bg-neutral-800 px-1 py-0.5 rounded font-mono">z-ai-web-dev-sdk</code>.
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pt-1">
             <button
               type="button"
               onClick={fetchLiveModels}
               disabled={isFetchingModels}
-              className="px-4 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl flex items-center gap-2 disabled:opacity-50 transition-colors shadow-sm"
+              className="px-3.5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg flex items-center gap-1.5 disabled:opacity-50 transition-colors shadow-sm"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isFetchingModels ? 'animate-spin' : ''}`} />
               Load GLM Models
@@ -183,161 +170,144 @@ export default function SettingsView() {
               type="button"
               onClick={testConnection}
               disabled={isTestingConnection}
-              className="px-4 py-2.5 text-xs font-semibold text-emerald-900 dark:text-emerald-100 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-800 rounded-xl flex items-center gap-2 disabled:opacity-50 transition-colors"
+              className="px-3.5 py-2 text-xs font-semibold text-neutral-700 dark:text-neutral-300 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-700/60 rounded-lg flex items-center gap-1.5 disabled:opacity-50 transition-colors"
             >
-              {isTestingConnection ? 'Testing...' : 'Test Connection'}
+              {isTestingConnection ? 'Testing…' : 'Test Connection'}
             </button>
           </div>
           {connectionStatusBlock}
-        </div>
+        </section>
       ) : (
-      <div className="p-5 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 space-y-4 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <label className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-            2. {provider.toUpperCase()} API Key
-          </label>
-          {provider === 'google' && (
-            <a
-              href="https://aistudio.google.com"
-              target="_blank"
-              rel="noreferrer"
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-            >
-              Get Free Google Gemini Key from AI Studio <ExternalLink className="w-3 h-3" />
-            </a>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <input
-              type={showKey ? 'text' : 'password'}
-              value={apiKeys[provider] || ''}
-              onChange={(e) => setApiKey(provider, e.target.value)}
-              placeholder={`Paste your ${provider.toUpperCase()} API key here...`}
-              className="w-full px-3.5 py-2.5 pr-10 text-sm rounded-xl border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              type="button"
-              onClick={() => setShowKey(!showKey)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
-            >
-              {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={fetchLiveModels}
-            disabled={isFetchingModels}
-            className="px-4 py-2.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl flex items-center gap-2 disabled:opacity-50 transition-colors shadow-sm shrink-0"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isFetchingModels ? 'animate-spin' : ''}`} />
-            Fetch Models
-          </button>
-
-          <button
-            type="button"
-            onClick={testConnection}
-            disabled={isTestingConnection}
-            className="px-4 py-2.5 text-xs font-semibold text-neutral-800 dark:text-neutral-200 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 border border-neutral-300 dark:border-neutral-700 rounded-xl flex items-center gap-2 disabled:opacity-50 transition-colors shrink-0"
-          >
-            {isTestingConnection ? 'Testing...' : 'Test Connection'}
-          </button>
-        </div>
-
-        {/* Connection status notification */}
-        {connectionStatusBlock}
-
-        {/* Searchable Model Dropdown */}
-        <div className="pt-2 border-t border-neutral-100 dark:border-neutral-800 space-y-3">
+        <section className="surface rounded-2xl p-5 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <label className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-              3. Selected Active Model ({availableModels.length} available)
+              {provider.toUpperCase()} API Key
             </label>
-            <input
-              type="text"
-              value={modelSearch}
-              onChange={(e) => setModelSearch(e.target.value)}
-              placeholder="Search models..."
-              className="text-xs px-2.5 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="max-h-48 overflow-y-auto border border-neutral-200 dark:border-neutral-800 rounded-xl divide-y divide-neutral-100 dark:divide-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
-            {filteredModels.length > 0 ? (
-              filteredModels.map((m) => {
-                const isSelected = selectedModel === m.id && !customModelId;
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => updateSettings({ selectedModel: m.id, customModelId: '' })}
-                    className={`w-full px-3.5 py-2.5 text-left flex items-center justify-between text-xs transition-colors ${
-                      isSelected
-                        ? 'bg-blue-100/70 dark:bg-blue-900/40 text-blue-900 dark:text-blue-200 font-semibold'
-                        : 'hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300'
-                    }`}
-                  >
-                    <div>
-                      <div>{m.name}</div>
-                      <div className="text-[10px] text-neutral-400">{m.id}</div>
-                    </div>
-                    {isSelected && <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
-                  </button>
-                );
-              })
-            ) : (
-              <div className="p-4 text-center text-xs text-neutral-500">
-                No matching models found. Click &apos;Fetch Models&apos; to query live endpoints.
-              </div>
+            {provider === 'google' && (
+              <a
+                href="https://aistudio.google.com"
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+              >
+                Get free Gemini key <ExternalLink className="w-3 h-3" />
+              </a>
             )}
           </div>
 
-          {/* Custom Model ID Override */}
-          <div className="pt-2">
-            <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400 block mb-1">
-              Or specify Custom Model ID / Fine-tune:
-            </label>
-            <input
-              type="text"
-              value={customModelId}
-              onChange={(e) => updateSettings({ customModelId: e.target.value })}
-              placeholder="e.g. gemini-2.5-flash or gpt-4o-2024-08-06"
-              className="w-full px-3 py-2 text-xs rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                type={showKey ? 'text' : 'password'}
+                value={apiKeys[provider] || ''}
+                onChange={(e) => setApiKey(provider, e.target.value)}
+                placeholder={`Paste your ${provider.toUpperCase()} API key…`}
+                className="w-full px-3.5 py-2.5 pr-10 text-sm rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 font-mono"
+              />
+              <button
+                type="button"
+                onClick={() => setShowKey(!showKey)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+              >
+                {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={fetchLiveModels}
+              disabled={isFetchingModels}
+              className="px-3.5 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg flex items-center gap-1.5 disabled:opacity-50 transition-colors shadow-sm shrink-0"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isFetchingModels ? 'animate-spin' : ''}`} />
+              Fetch
+            </button>
+            <button
+              type="button"
+              onClick={testConnection}
+              disabled={isTestingConnection}
+              className="px-3.5 py-2.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-700/60 rounded-lg flex items-center gap-1.5 disabled:opacity-50 transition-colors shrink-0"
+            >
+              {isTestingConnection ? 'Testing…' : 'Test'}
+            </button>
           </div>
-        </div>
-      </div>
+
+          {connectionStatusBlock}
+        </section>
       )}
 
-      {/* Local Vector Mode */}
-      <div className="p-5 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 space-y-4 shadow-sm">
+      {/* Model picker */}
+      <section className="surface rounded-2xl p-5 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <label className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+            Active Model <span className="text-[11px] text-neutral-400 font-normal">({availableModels.length} available)</span>
+          </label>
+          <input
+            type="text"
+            value={modelSearch}
+            onChange={(e) => setModelSearch(e.target.value)}
+            placeholder="Search models…"
+            className="text-xs px-2.5 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 w-full sm:w-40"
+          />
+        </div>
+
+        <div className="max-h-56 overflow-y-auto border border-neutral-200 dark:border-neutral-800 rounded-lg divide-y divide-neutral-100 dark:divide-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+          {filteredModels.length > 0 ? (
+            filteredModels.map((m) => {
+              const isSelected = selectedModel === m.id && !customModelId;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => updateSettings({ selectedModel: m.id, customModelId: '' })}
+                  className={`w-full px-3.5 py-2.5 text-left flex items-center justify-between text-xs transition-colors ${
+                    isSelected
+                      ? 'bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 font-semibold'
+                      : 'hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300'
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <div className="truncate">{m.name}</div>
+                    <div className="text-[10px] text-neutral-400 font-mono truncate">{m.id}</div>
+                  </div>
+                  {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 ml-2" />}
+                </button>
+              );
+            })
+          ) : (
+            <div className="p-4 text-center text-xs text-neutral-500">
+              No matching models. Click “Fetch” to query live endpoints.
+            </div>
+          )}
+        </div>
+
+        <div className="pt-1">
+          <label className="text-[11px] font-medium text-neutral-500 dark:text-neutral-400 block mb-1">
+            Or specify a custom model ID:
+          </label>
+          <input
+            type="text"
+            value={customModelId}
+            onChange={(e) => updateSettings({ customModelId: e.target.value })}
+            placeholder="e.g. gemini-2.5-flash or gpt-4o-mini"
+            className="w-full px-3 py-2 text-xs rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 font-mono"
+          />
+        </div>
+      </section>
+
+      {/* Local search mode */}
+      <section className="surface rounded-2xl p-5 space-y-3">
         <label className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
-          <Layers className="w-4 h-4 text-purple-500" />
-          4. Local Search & Embedding Mode
+          <Layers className="w-4 h-4 text-emerald-500" />
+          Local Search & Embedding Mode
         </label>
         <p className="text-xs text-neutral-500">
-          How local search scans research documents on your local hard drive:
+          How local search scans research documents on your machine.
         </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           {[
-            {
-              id: 'AUTO',
-              title: 'Auto-Select (Recommended)',
-              desc: 'Selects FTS5 + TF-IDF on <=8GB PCs, or FastEmbed if sufficient memory is detected.',
-            },
-            {
-              id: 'TFIDF',
-              title: 'FTS5 + TF-IDF Only',
-              desc: 'Pure CPU, zero RAM overhead. Uses SQLite BM25 + scikit-learn. Fast and lightweight.',
-            },
-            {
-              id: 'FASTEMBED',
-              title: 'FastEmbed (bge-small-en)',
-              desc: 'Dense semantic embeddings with ONNX Runtime. Recommended for 8GB+ RAM.',
-            },
+            { id: 'AUTO', title: 'Auto-Select', desc: 'FTS5 + TF-IDF on ≤8GB; FastEmbed if more memory.' },
+            { id: 'TFIDF', title: 'FTS5 + TF-IDF', desc: 'Pure CPU, zero RAM overhead. SQLite BM25.' },
+            { id: 'FASTEMBED', title: 'FastEmbed (bge-small-en)', desc: 'Dense ONNX embeddings. 8GB+ RAM.' },
           ].map((mode) => {
             const isSelected = localMode === mode.id;
             return (
@@ -345,26 +315,24 @@ export default function SettingsView() {
                 key={mode.id}
                 type="button"
                 onClick={() => updateSettings({ localMode: mode.id as any })}
-                className={`p-3 rounded-xl border text-left transition-all text-xs ${
+                className={`p-3 rounded-xl border text-left transition-all ${
                   isSelected
-                    ? 'border-purple-600 bg-purple-50/50 dark:bg-purple-950/30 dark:border-purple-500'
+                    ? 'border-emerald-500 dark:border-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/20'
                     : 'border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700'
                 }`}
               >
-                <div className="font-semibold text-neutral-900 dark:text-neutral-100 mb-1">{mode.title}</div>
-                <div className="text-[11px] text-neutral-500">{mode.desc}</div>
+                <div className="font-semibold text-xs text-neutral-900 dark:text-neutral-100 mb-1">{mode.title}</div>
+                <div className="text-[10px] text-neutral-500 leading-tight">{mode.desc}</div>
               </button>
             );
           })}
         </div>
-      </div>
+      </section>
 
       {/* Security note */}
-      <div className="flex items-center gap-2 text-xs text-neutral-500">
-        <Shield className="w-4 h-4 text-neutral-400 shrink-0" />
-        <span>
-          ScriptOS never uploads your keys to any centralized server. All keys are encrypted locally using AES/Fernet encryption tied to this computer.
-        </span>
+      <div className="flex items-center gap-2 text-[11px] text-neutral-500">
+        <Key className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+        <span>Keys never leave your browser. Z.AI needs none at all.</span>
       </div>
     </div>
   );

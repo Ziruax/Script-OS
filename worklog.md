@@ -346,3 +346,59 @@ Unresolved issues / risks / next-phase priorities:
 - Could add a "Skip onboarding" link that marks it complete without stepping through.
 - The Facts/Stats/Human Stories cards are NOT filter-aware (only the python_research-backed Wikipedia/Web/Reddit cards are). This is intentional (Facts/Stats/Stories are LLM-synthesized, not source-typed) but could be clarified with a small "Synthesized" badge.
 - Could add a "Copy all sources" button that copies every source URL to the clipboard for external use.
+
+---
+Task ID: 8 (user-requested UI redesign)
+Agent: main (Z.ai Code)
+Task: User explicitly requested: "kindly redesign the UI properly from start and make sure to design a proper user friendly UI also dont show welcome screen its too annoying".
+
+Work Log:
+- Read previous worklog (Tasks 1-7) to understand accumulated state. The app had grown organically over 7 rounds with ad-hoc styling (blue/purple/amber/violet rainbow, inconsistent badges, multiple gradient backgrounds). User found the auto-show onboarding modal annoying and requested a proper redesign from scratch.
+
+DESIGN SYSTEM (globals.css rewrite):
+- Rewrote globals.css as a cohesive design system foundation: Inter/JetBrains Mono font stack, refined thin scrollbars, defined animation keyframes (fade-in, slide-up, shimmer, pulse-ring), a `.focus-ring` utility for accessible emerald focus rings, a `.surface` reusable card class (white/zinc-950 bg, 1px border, subtle shadow), and line-clamp helpers.
+- Single accent color philosophy: emerald is the ONE brand/active color. Semantic colors (rose for errors, amber for warnings) used sparingly. No more blue/purple/violet rainbow.
+
+BUG/UX FIX (the user's headline complaint):
+- Removed the auto-show onboarding modal ENTIRELY. MainApp now marks `scriptos_onboarding_completed='true'` on mount so the HelpModal NEVER auto-opens, even for first-time visitors. The Help button in the top bar still opens it on demand. Verified live: on first load, no "Welcome to ScriptOS" modal appears.
+
+MAIN APP SHELL REDESIGN (MainApp.tsx full rewrite):
+- Replaced the top-tab navigation with a clean, persistent LEFT SIDEBAR (60–240px, collapsible, persisted to localStorage). Sidebar has: gradient emerald logo badge, 5 nav items (Wizard/Research/Outline/Script Studio/Settings) each with icon + label + hint subtitle + active emerald highlight + dot indicator, and a footer section with Project Library + Playbook + Collapse buttons.
+- Sidebar collapses to a 64px icon-only rail (persisted); expands back to 240px. Verified live: collapse → "sidebar collapsed ✓", expand → "sidebar expanded ✓".
+- Refined top bar: mobile logo + native `<select>` dropdown nav on mobile (md:hidden), Z.AI zero-config status pill, auto-save time, theme toggle, help button. Removed the redundant hardware-specs badge.
+- Pipeline stepper kept but slimmer (py-1, smaller step dots, emerald active state, gray past state).
+- Footer slimmer: single row with provider/model status + keyboard hints (⌘↵ generate, ⌘S save) on md+.
+- Mobile responsive: sidebar hidden on mobile, replaced with a native select dropdown for nav.
+
+WIZARD VIEW REDESIGN (WizardView.tsx full rewrite):
+- Cleaner header: "New Script" h1 + subtitle, Quick Branch + Help buttons on the right.
+- Templates: same 10 templates but cleaner card design — single emerald accent on the active card, gradient strip per template preserved, 5-col grid on lg.
+- Main config in a `.surface` card: Title input, Details textarea (with live char/word count), Length section (9 preset buttons + range slider + numeric input, all emerald-active), Strategy grid (6 selects: Content Format, Narrative Mode, Audience Depth, Primary Goal, Tone, + Archetype summary), Story DNA panel (emerald-themed), 4 preview stat cards (Word count, Chapters, Read time, B-Roll cues — all emerald icon, no more rainbow), est-time + model bar, secondary "Architect Story DNA" link.
+- Primary action: full-width emerald "Generate Full Script" button with shadow-emerald-600/20, Play + ArrowRight icons. Replaces the old neutral-900 button.
+- All focus rings use emerald-500/40. All inputs use consistent border + bg tokens.
+
+SETTINGS VIEW REDESIGN (SettingsView.tsx full rewrite):
+- "Settings" h1 + subtitle.
+- Hardware profile card (emerald Cpu icon, mode label, RAM info, "Local CPU Mode" pill).
+- Provider selector: 7 providers in a 3-col grid, all using emerald highlight when selected (no more blue/emerald split), "Default" badge on Z.AI, check icon on selected.
+- ZAI zero-config panel: emerald Sparkles icon, "Load GLM Models" + "Test Connection" buttons. Non-ZAI providers get a password input + Fetch + Test buttons.
+- Model picker: searchable list with emerald active highlight, custom model ID input.
+- Local search mode: 3-col grid (Auto/FTS5/FastEmbed) with emerald active state.
+- Security note at the bottom.
+
+VERIFICATION:
+- `bun run lint` → clean (0 errors). (Fixed a react-hooks/set-state-in-effect error by using a lazy useState initializer for sidebarCollapsed instead of setState-in-effect.)
+- Dev server: Next.js 16.3.5, ready in 301ms, zero errors.
+- curl smoke tests: GET / 200, GET /settings 200.
+- agent-browser QA: zero page errors. Onboarding modal does NOT auto-show (verified "Welcome to ScriptOS" = false on first load). Wizard renders with "New Script" h1 + 10 templates + "Generate Full Script" button. Settings renders with "Settings" h1 + Z.AI Zero-Config panel. Sidebar collapse/expand works + persists. Mobile dropdown nav present. All 5 tabs render (Wizard→"New Script", Research/Outline/Script Studio use their existing h2, Settings→"Settings").
+- Captured 4 screenshots: scriptos-v8-redesign-wizard.png, scriptos-v8-redesign-settings.png, scriptos-v8-redesign-mobile.png, scriptos-v8-redesign-collapsed.png.
+
+Stage Summary:
+- Complete UI redesign delivered: cohesive design system (single emerald accent, .surface cards, refined typography/animations), sidebar-based app shell (collapsible + persisted + mobile dropdown), redesigned Wizard + Settings with clean hierarchy and consistent focus rings. The annoying auto-show onboarding modal is GONE — users land directly in the Wizard.
+- This was a user-requested redesign, not a recurring cron round. The Research/Outline/Script Studio views retain their existing (round 5-6) styling which is already emerald-aligned; they could be refreshed in a future round for full consistency with the new shell.
+
+Unresolved issues / next-phase priorities:
+- Research/Outline/Script Studio views still use the pre-redesign styling (emerald-aligned but not using the new `.surface` class + h1 headings). Could refresh them for full consistency with the new shell.
+- The PlaybookModal and HelpModal still have their own styling (purple/blue gradients). Could align them to the new emerald design system.
+- Could add a subtle "first time" hint (a small dismissible banner pointing to templates) instead of the full-screen modal — non-annoying discovery.
+- The mobile dropdown nav uses a native <select> which works but isn't as polished as a custom sheet; could replace with a bottom-sheet drawer.
