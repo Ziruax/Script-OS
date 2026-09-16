@@ -579,3 +579,47 @@ Unresolved issues / next-phase priorities:
 - The humanize route isn't branched for Story Mode yet (still uses the documentary scorecard: hook/stakes/novelty/loops/human-voice/payoff). Should branch to the story scorecard (tension/voice/emotional-arc/show-don't-tell/subtext/thematic-payoff) when story_mode. Priority for next round.
 - The script/qa route isn't branched for Story Mode either. Priority for next round.
 - Could add a live "chapter count" readout in the Script Studio header so users see the expected vs actual chapter count during generation.
+
+---
+Task ID: 13 (user-requested: remove presets + add session reset)
+Agent: main (Z.ai Code)
+Task: User requested: "remove the presets we don't need them because they are worthless and add a session reset button so that we/user can start from 0 no cache".
+
+Work Log:
+- Read previous worklog (Task 12: fixed chapter/word/angles/script-copy issues). The user wanted the Quick Start Templates (10 preset cards that pre-fill the wizard) removed because they're "worthless", plus a way to start completely fresh with no cache.
+
+CHANGE 1 — Removed the Quick Start Templates (the presets):
+- Removed the entire "Quick Start Templates" `<section>` from WizardView (the 10-card grid: Productivity, True Crime, Tech Explainer, Personal Story, Business Case Study, Mystery, Finance, Health, Biography, News Analysis).
+- Removed the now-unused imports: `WIZARD_TEMPLATES`, `WizardTemplate` from `@/lib/templates`, and the `Zap`/`CheckCircle2` lucide icons. Removed the `applyTemplate` function.
+- The Wizard now opens to a clean config card (Title, Details, Length, Strategy) with no pre-filled preset content. Users configure everything from scratch. (The `src/lib/templates.ts` file remains for the HelpModal onboarding step, which is disabled anyway.)
+- Verified live: `!document.body.innerText.includes('Quick Start Templates')` = true.
+
+CHANGE 2 — Added a "Start Fresh" session-reset button:
+- New store action `resetSession()`:
+  - Clears ALL `scriptos_*` localStorage keys EXCEPT a keep-set: `scriptos_theme`, `scriptos_sidebar_collapsed`, `scriptos_onboarding_completed` (UI prefs + the flag that prevents the onboarding modal from auto-showing). So the user starts from zero but keeps their theme + doesn't get nagged by the modal.
+  - Resets the entire store to fresh defaults: title='', details='', lengthMin=8, contentType='Documentary', all pipeline data null/empty (storyDna, researchPack, angles, outline, chapters, finalResult, qaScorecard), savedProjects=[], activeTab='wizard', currentStep=1, storyMode=false, autoSaveTime=''.
+  - Preserves provider settings (provider, apiKeys, selectedModel, customModelId, localMode) + theme so the user doesn't lose their LLM config.
+- "Start Fresh" button added to the Wizard header (rose-themed, RotateCcw icon) next to Quick Branch + Help.
+- Confirm dialog (rose-themed) with the warning: "This clears everything: the current workspace (title, details, research, outline, script, QA), the saved project library, and all cached state. There is no undo." + Cancel / Reset Everything buttons.
+- On reset: a "Session reset" success toast appears.
+- Verified live end-to-end:
+  1. Injected workspace state (title="OLD TITLE") + a saved project + research filter into localStorage.
+  2. Reloaded → title field showed "OLD TITLE", 3 localStorage keys present.
+  3. Clicked "Start Fresh" → confirm dialog appeared.
+  4. Clicked "Reset Everything" → "Session reset" toast appeared.
+  5. Title field now EMPTY, all 3 workspace localStorage keys CLEARED (0 remaining), UI prefs kept (onboarding flag preserved so no modal).
+
+VERIFICATION:
+- `bun run lint` → clean (0 errors, 0 warnings). (Fixed a missing `Compass` import after removing the template imports + a duplicate `} from 'lucide-react'` line.)
+- Dev server: Next.js 16.3.5, ready, zero errors. GET / 200, GET /settings 200.
+- agent-browser QA: zero page errors. Templates section gone. Start Fresh button present. Full reset flow verified: inject state → reload → Start Fresh → confirm → Reset Everything → toast → title empty + 3 cache keys cleared + UI prefs kept.
+- Captured 1 screenshot: scriptos-v12-start-fresh.png.
+
+Stage Summary:
+- Both user requests delivered: (1) the Quick Start Templates (presets) are removed — the Wizard is now a clean from-scratch form; (2) a "Start Fresh" button with a confirm dialog clears ALL workspace data + ALL cached localStorage (except UI prefs + the onboarding flag) so the user starts from absolute zero. Provider settings are preserved so they don't have to reconfigure their LLM.
+- All changes lint-clean and verified end-to-end via agent-browser.
+
+Unresolved issues / risks / next-phase priorities:
+- The `src/lib/templates.ts` file still exists (used by the disabled onboarding HelpModal step). Could delete it if the onboarding templates step is also removed, but it's harmless.
+- Could add a "Reset" option in the sidebar footer too (currently only in the Wizard header) for always-accessible reset.
+- Could add a keyboard shortcut for Start Fresh (e.g. Shift+Cmd+R).

@@ -233,6 +233,7 @@ export interface ScriptOSState {
   saveToStorage: () => void;
   loadFromStorage: () => void;
   resetPipeline: () => void;
+  resetSession: () => void;
   toggleTheme: () => void;
   saveCurrentAsProject: (name?: string) => void;
   loadProject: (id: string) => void;
@@ -1105,6 +1106,72 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
       currentProgressMessage: ''
     });
     get().saveToStorage();
+  },
+
+  // Full session reset — clears ALL workspace data + ALL cached localStorage
+  // so the user starts from absolute zero. Keeps UI prefs (theme, sidebar
+  // collapse) and the onboarding flag so the modal doesn't auto-show.
+  resetSession: () => {
+    if (typeof window !== 'undefined') {
+      const KEEP = new Set(['scriptos_theme', 'scriptos_sidebar_collapsed', 'scriptos_onboarding_completed']);
+      try {
+        // Remove every scriptos_* key except the keep-set
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('scriptos_') && !KEEP.has(k)) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k));
+      } catch {}
+    }
+    // Reset the entire store to fresh defaults (preserve UI prefs + provider settings)
+    const { theme, provider, apiKeys, selectedModel, customModelId, localMode } = get() as any;
+    set({
+      // Navigation
+      activeTab: 'wizard',
+      currentStep: 1,
+      // Wizard inputs — cleared to blank defaults (no preset content)
+      title: '',
+      details: '',
+      lengthMin: 8,
+      contentType: 'Documentary',
+      narrativeMode: 'Investigation',
+      audienceIntent: 'Understand',
+      emotionalEngine: 'Curiosity',
+      audience: 'Auto-detect',
+      goal: 'Auto-detect',
+      tone: 'Auto-detect',
+      detectedRationale: '',
+      isDetectingMetadata: false,
+      storyMode: false,
+      // Pipeline data — all cleared
+      storyDna: null,
+      researchPack: null,
+      angles: [],
+      chosenAngle: null,
+      outlineData: null,
+      outlineCouncilEval: null,
+      chapters: [],
+      finalResult: null,
+      qaScorecard: null,
+      // Runtime
+      isGenerating: false,
+      currentProgressMessage: '',
+      activeChapterGeneratingIndex: 0,
+      autoSaveTime: '',
+      // Project library — cleared
+      savedProjects: [],
+      showProjectLibrary: false,
+      // Keep UI prefs + provider settings (theme, provider, apiKeys, selectedModel, etc. preserved)
+      theme,
+      provider,
+      apiKeys,
+      selectedModel,
+      customModelId,
+      localMode,
+    });
   },
 
   toggleTheme: () => {

@@ -1,8 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useScriptOSStore } from '@/lib/store';
-import { WIZARD_TEMPLATES, WizardTemplate } from '@/lib/templates';
 import { getChapterCount } from '@/lib/chapter-math';
 import { useToast } from '@/components/Toast';
 import {
@@ -14,15 +13,14 @@ import {
   HelpCircle,
   Play,
   Layers,
-  CheckCircle2,
-  ArrowRight,
-  Compass,
   BookOpen,
   ShieldCheck,
-  Zap,
+  Compass,
   Film,
   GitBranch,
   Wand2,
+  ArrowRight,
+  RotateCcw,
 } from 'lucide-react';
 import {
   CONTENT_TYPES,
@@ -59,6 +57,7 @@ export default function WizardView() {
     setShowHelpModal,
     setActiveTab,
     saveCurrentAsProject,
+    resetSession,
   } = useScriptOSStore();
   const { toast } = useToast();
 
@@ -69,21 +68,12 @@ export default function WizardView() {
   const estChapters = getChapterCount(lengthMin);
   const estWords = lengthMin * 140;
 
-  const applyTemplate = (t: WizardTemplate) => {
-    updateInputs({
-      title: t.title,
-      details: t.details,
-      lengthMin: t.lengthMin,
-      contentType: t.contentType as any,
-      narrativeMode: t.narrativeMode as any,
-      audienceIntent: t.audienceIntent as any,
-      emotionalEngine: t.emotionalEngine as any,
-      audience: 'Auto-detect',
-      goal: 'Auto-detect',
-      tone: 'Auto-detect',
-      detectedRationale: `Applied "${t.name}" template.`,
-    });
-    toast('Template applied', 'success', t.name);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  const handleReset = () => {
+    resetSession();
+    setShowResetConfirm(false);
+    toast('Session reset', 'success', 'All workspace data + cache cleared');
   };
 
   const estTime = Math.round(2 + 21 + 27 + 5 + 20 + (estChapters * 9) + 5 + 3);
@@ -103,6 +93,15 @@ export default function WizardView() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowResetConfirm(true)}
+            className="px-3 py-1.5 text-xs font-medium text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-lg flex items-center gap-1.5 transition-colors"
+            title="Clear all workspace data + cached state and start from zero"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Start Fresh</span>
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -127,6 +126,44 @@ export default function WizardView() {
           </button>
         </div>
       </div>
+
+      {/* Start Fresh confirm dialog */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden">
+            <div className="p-5">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 shrink-0">
+                  <RotateCcw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100">Start Fresh?</h3>
+                  <p className="text-xs text-neutral-500 mt-1 leading-relaxed">
+                    This clears <strong>everything</strong>: the current workspace (title, details, research, outline, script, QA), the saved project library, and all cached state. There is no undo.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="px-5 py-3 bg-neutral-50 dark:bg-neutral-950/40 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                className="px-3 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-300 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-700 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset Everything
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Story Mode toggle — switches the entire pipeline methodology */}
       <div className={`relative overflow-hidden rounded-2xl border p-4 transition-all ${
@@ -170,52 +207,6 @@ export default function WizardView() {
           </button>
         </div>
       </div>
-
-      {/* Quick Start Templates */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-1.5">
-          <Zap className="w-3.5 h-3.5 text-emerald-500" />
-          <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
-            Quick Start Templates
-          </h2>
-          <span className="text-[11px] text-neutral-400">— one click fills everything</span>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-          {WIZARD_TEMPLATES.map((t) => {
-            const isActive = title === t.title;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => applyTemplate(t)}
-                className={`group relative p-3 rounded-xl border text-left transition-all overflow-hidden ${
-                  isActive
-                    ? 'border-emerald-500 dark:border-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-sm'
-                    : 'border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:border-neutral-300 dark:hover:border-neutral-700 hover:shadow-sm'
-                }`}
-              >
-                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${t.accent}`} aria-hidden />
-                <div className="flex items-start gap-1.5 pt-1">
-                  <span className="text-base leading-none">{t.emoji}</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[11px] font-bold text-neutral-900 dark:text-neutral-100 truncate">{t.name}</span>
-                      {isActive && <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />}
-                    </div>
-                    <p className="text-[10px] text-neutral-500 dark:text-neutral-400 mt-0.5 line-clamp-2 leading-tight">{t.desc}</p>
-                    <div className="flex items-center gap-1 mt-1 text-[9px] text-neutral-400">
-                      <Clock className="w-2.5 h-2.5" />
-                      <span>{t.lengthMin}m</span>
-                      <span className="text-neutral-300 dark:text-neutral-700">·</span>
-                      <span className="truncate">{t.contentType}</span>
-                    </div>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
 
       {/* Main config card */}
       <section className="surface rounded-2xl p-5 sm:p-6 space-y-6">
