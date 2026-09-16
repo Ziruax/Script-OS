@@ -1,14 +1,44 @@
 import { GoogleGenAI } from '@google/genai';
 
-// Lazy ZAI singleton — created on first use (server-side only)
+// Lazy ZAI singleton — created on first use (server-side only).
+// NOTE: ZAI works in the sandbox (credentials at /etc/.z-ai-config).
+// On a local machine, the user must create ~/.z-ai-config with their
+// Z.AI API key, OR use a different provider (Google Gemini free tier).
 let _zaiPromise: Promise<any> | null = null;
+let _zaiAvailable: boolean | null = null;
+
 async function getZai() {
   if (!_zaiPromise) {
-    const mod = await import('z-ai-web-dev-sdk');
-    const ZAI = (mod as any).default || mod;
-    _zaiPromise = ZAI.create();
+    try {
+      const mod = await import('z-ai-web-dev-sdk');
+      const ZAI = (mod as any).default || mod;
+      _zaiPromise = ZAI.create();
+      _zaiAvailable = true;
+    } catch (err: any) {
+      _zaiAvailable = false;
+      _zaiPromise = null;
+      throw new Error(
+        'Z.AI is not configured on this machine. To use Z.AI, create a file at ' +
+        '~/.z-ai-config (or .z-ai-config in the project root) with: ' +
+        '{"baseUrl":"https://open.bigmodel.cn/api/paas/v4","apiKey":"YOUR_ZAI_KEY"}. ' +
+        'Get a key at https://open.bigmodel.cn — OR switch to Google Gemini ' +
+        '(free tier, no setup needed beyond pasting a key in Settings). ' +
+        `Original error: ${err?.message || err}`
+      );
+    }
   }
   return _zaiPromise;
+}
+
+/** Check if ZAI is available (for the health endpoint + Settings UI). */
+export async function isZaiAvailable(): Promise<boolean> {
+  if (_zaiAvailable !== null) return _zaiAvailable;
+  try {
+    await getZai();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function getGeminiClient(customApiKey?: string) {
