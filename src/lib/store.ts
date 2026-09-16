@@ -9,6 +9,24 @@ import {
   QaScorecard,
 } from '@/lib/story-dna';
 
+/**
+ * Safely parse a fetch Response as JSON. If the response is not JSON (e.g.,
+ * a Next.js dev-mode HTML compilation page, a 404 HTML page, or a browser
+ * extension redirect), throw a clear error instead of the cryptic
+ * "Unexpected token '<'" SyntaxError.
+ */
+async function safeJson(res: Response): Promise<any> {
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('application/json') || ct.includes('text/json')) {
+    return res.json();
+  }
+  const text = await res.text();
+  throw new Error(
+    `Server returned ${ct || 'non-JSON'} (HTTP ${res.status})` +
+    (text ? `: ${text.slice(0, 150)}` : '')
+  );
+}
+
 export interface ResearchPack {
   facts: Array<{ fact: string; source: string; domain?: string }>;
   stats: Array<{ stat: string; source: string }>;
@@ -364,7 +382,7 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider, api_key: key })
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (res.ok && data.models && data.models.length > 0) {
         set({
           availableModels: data.models,
@@ -437,7 +455,7 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
           story_mode: get().storyMode,
         })
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (data && data.audience && data.goal && data.tone) {
         set({
           audience: data.audience,
@@ -500,7 +518,7 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
           story_mode: get().storyMode,
         }),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (data && data.central_story_question) {
         set({ storyDna: data, isGenerating: false, currentProgressMessage: '' });
       } else {
@@ -550,7 +568,7 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
           story_mode: get().storyMode,
         })
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (data && data.facts) {
         set({ researchPack: data, isGenerating: false, currentProgressMessage: '' });
       } else {
@@ -593,7 +611,7 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
           story_mode: get().storyMode,
         })
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       const generatedAngles = Array.isArray(data.angles) && data.angles.length > 0 ? data.angles : [];
       set({
         angles: generatedAngles,
@@ -677,7 +695,7 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
           story_mode: get().storyMode,
         })
       });
-      const data = await res.json();
+      const data = await safeJson(res);
 
       const stateUpdates: Partial<ScriptOSState> = {
         outlineData: data.outline,
@@ -750,7 +768,7 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
           story_mode: get().storyMode,
           })
         });
-        const sectionData = await res.json();
+        const sectionData = await safeJson(res);
         // Ensure script_text is present
         if (!sectionData.script_text) {
           sectionData.chapter_id = chapter.id;
@@ -802,7 +820,7 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
           story_mode: get().storyMode,
         })
       });
-      const finalData = await humRes.json();
+      const finalData = await safeJson(humRes);
       set({
         finalResult: finalData,
         isGenerating: false,
@@ -857,7 +875,7 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
           story_mode: get().storyMode,
         }),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (data && data.scorecard) {
         set({ qaScorecard: data.scorecard });
         get().saveToStorage();
@@ -973,7 +991,7 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
       });
 
       if (!res.ok) throw new Error('Perplexity injector failed');
-      const data = await res.json();
+      const data = await safeJson(res);
       const updatedScript = data.injected_script || state.finalResult.final_script;
       const scan = data.anti_ai_scan || scanScriptAntiAi(updatedScript);
 

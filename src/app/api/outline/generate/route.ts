@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { callUnifiedLLM, parseJsonSafe } from '@/lib/gemini-server';
 import { MASTER_SCRIPT_SPEC_INSTRUCTION } from '@/lib/story-dna';
 import { getChapterCount, getSecondsPerChapter } from '@/lib/chapter-math';
+import { STORY_OUTLINE_SYSTEM_PROMPT } from '@/lib/story-mode';
 
 export async function POST(req: NextRequest) {
   try {
@@ -71,6 +72,96 @@ export async function POST(req: NextRequest) {
     const chapterCount = getChapterCount(Number(length_min) || 8);
     const estSecondsPerChapter = getSecondsPerChapter(Number(length_min) || 8, chapterCount);
 
+    // ── Story Mode branch: 3-act beat sheet (scenes, not documentary chapters) ──
+    if (story_mode) {
+      const storyArchitectPrompt = `${STORY_OUTLINE_SYSTEM_PROMPT}
+
+STORY CONCEPT: "${title}"
+USER DETAILS: ${details || 'None provided.'}
+TARGET DURATION: ${length_min} minutes
+GENERATE EXACTLY ${chapterCount} BEATS across the 3-act structure.
+Each beat ~${estSecondsPerChapter} seconds.
+
+STORY DNA (use these for consistency):
+- Protagonist: ${JSON.stringify(story_dna?.protagonist || {})}
+- Theme: ${story_dna?.theme || ''}
+- Stakes: ${JSON.stringify(story_dna?.stakes || {})}
+- Three-act structure: ${JSON.stringify(story_dna?.three_act_structure || {})}
+- Tension curve: ${JSON.stringify(story_dna?.tension_curve || {})}
+- Sensory anchors: ${JSON.stringify(story_dna?.sensory_anchors || [])}
+- POV: ${story_dna?.pov || 'Third limited'}
+
+CHOSEN ANGLE:
+${JSON.stringify(effectiveAngle)}
+
+RESEARCH ANCHORS:
+${JSON.stringify((research_pack?.facts || []).slice(0, 3))}
+
+Generate the ${chapterCount} beats now. Output ONLY valid JSON.`;
+
+      let bestOutline: any = null;
+      try {
+        const rawOutline = await callUnifiedLLM({
+          provider,
+          model,
+          apiKey: api_key,
+          systemInstruction: storyArchitectPrompt,
+          prompt: storyArchitectPrompt,
+          jsonMode: true,
+          temperature: 0.6,
+        });
+        bestOutline = parseJsonSafe(rawOutline, null);
+      } catch (llmErr) {
+        console.warn('[ScriptOS Story Mode] Outline LLM warning:', llmErr);
+      }
+
+      if (!bestOutline || !bestOutline.outline || !Array.isArray(bestOutline.outline.beats) || bestOutline.outline.beats.length === 0) {
+        // Fallback: convert the chapter-based fallback to story beats
+        const beats = buildFallbackChapters(title, chapterCount, estSecondsPerChapter).map((c, i) => ({
+          id: c.id,
+          act: (i < chapterCount * 0.25 ? 1 : i < chapterCount * 0.75 ? 2 : 3) as 1 | 2 | 3,
+          beat_name: c.title,
+          scene_goal: c.goal,
+          conflict: c.stakes_external || 'The obstacle in this scene',
+          turn: c.scene_micro_structure?.change || 'The value shift',
+          emotional_shift: 'Entry feeling → exit feeling',
+          sensory_anchor: c.broll_cue || 'One concrete grounding image',
+          dialogue_seed: c.re_hook || 'A line of subtext',
+          estimated_seconds: estSecondsPerChapter,
+        }));
+        bestOutline = { outline: { beats }, council_eval: bestOutline?.council_eval || { overall_pass: true, critics: {} } };
+      }
+
+      // Pad/trim to the exact target count
+      const beats = bestOutline.outline.beats;
+      if (beats.length < chapterCount) {
+        const pad = buildFallbackChapters(title, chapterCount - beats.length, estSecondsPerChapter).map((c, i) => ({
+          id: beats.length + i + 1,
+          act: 3 as 1 | 2 | 3,
+          beat_name: c.title,
+          scene_goal: c.goal,
+          conflict: 'The obstacle',
+          turn: 'The shift',
+          emotional_shift: 'Feeling change',
+          sensory_anchor: c.broll_cue || 'Image',
+          dialogue_seed: c.re_hook || 'Subtext',
+          estimated_seconds: estSecondsPerChapter,
+        }));
+        bestOutline.outline.beats = [...beats, ...pad];
+      } else if (beats.length > chapterCount) {
+        bestOutline.outline.beats = beats.slice(0, chapterCount);
+      }
+
+      return NextResponse.json({
+        outline: { chapters: bestOutline.outline.beats, __story_mode: true },
+        council_eval: bestOutline.council_eval || { overall_pass: true, critics: {} },
+        effective_angle: effectiveAngle,
+        chapter_count: chapterCount,
+        est_seconds_per_chapter: estSecondsPerChapter,
+      });
+    }
+
+    // ── Default (documentary) branch ──────────────────────────────────────────
     const architectPrompt = `${MASTER_SCRIPT_SPEC_INSTRUCTION}
 
 You are the Story Architect for ScriptOS (Pass 3).

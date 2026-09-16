@@ -1,4 +1,5 @@
 import type {Metadata} from 'next';
+import Script from 'next/script';
 import './globals.css'; // Global styles
 import { ToastProvider } from '@/components/Toast';
 
@@ -27,23 +28,22 @@ export const metadata: Metadata = {
 };
 
 // Inline script that runs before paint to apply the saved theme, preventing a flash.
-const themeInitScript = `
-(function() {
+// Rendered via next/script (NOT a raw <script> in <head>) so browser extensions
+// that inject their own content scripts into <head> don't cause a React hydration
+// mismatch. next/script manages the tag outside of React's hydration tree.
+const themeInitScript = `(function() {
   try {
     var t = localStorage.getItem('scriptos_theme');
     if (t !== 'light' && t !== 'dark') t = 'dark';
     if (t === 'dark') document.documentElement.classList.add('dark');
   } catch (e) {}
-})();
-`;
+})();`;
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{__html: themeInitScript}} />
-      </head>
       <body suppressHydrationWarning>
+        <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
