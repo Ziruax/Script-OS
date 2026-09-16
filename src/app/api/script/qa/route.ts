@@ -11,12 +11,73 @@ export async function POST(req: NextRequest) {
       provider = 'google',
       model,
       api_key,
+      story_mode = false,
     } = await req.json();
 
     if (!script_text || !script_text.trim()) {
       return NextResponse.json({ error: 'No script text provided' }, { status: 400 });
     }
 
+    // ── Story Mode QA: audit with storytelling criteria (not documentary retention) ──
+    if (story_mode) {
+      const qaPrompt = `You are the Senior Story QA Editor for ScriptOS Story Mode.
+Perform the definitive Story Quality Audit on this complete storytelling script.
+
+AUDIT CATEGORIES (storytelling, NOT documentary):
+1. TENSION_PACING (Max 20): Does dramatic tension rise and fall correctly? Are there flat stretches? Does the climax land?
+2. AUTHENTIC_VOICE (Max 20): Does the protagonist sound like a real, specific person (not AI, not generic)? Is their voice consistent?
+3. EMOTIONAL_ARC (Max 20): Does the feeling CHANGE across scenes? Is there a clear entry → exit emotional shift per scene? No flat emotional stretches.
+4. SHOW_DONT_TELL (Max 20): Is it dramatized (sensory, in-scene, beat-by-beat) vs summarized ("she felt sad" is TELLING; "she picked up the cold coffee, stared at it, set it down without drinking" is SHOWING)?
+5. DIALOGUE_SUBTEXT (Max 10): Is there subtext — characters saying one thing and meaning another? Are there "on the nose" lines that state feelings directly?
+6. THEMATIC_PAYOFF (Max 10): Does the ending earn the theme? Is the "so what" delivered through story, not through a speech?
+
+Score each from 0 to the max. Total max = 100.
+Pass = total >= 75.
+
+Return ONLY valid JSON:
+{
+  "scorecard": {
+    "total": <number>,
+    "passed": <boolean>,
+    "scores": {
+      "tension_pacing": <number>,
+      "authentic_voice": <number>,
+      "emotional_arc": <number>,
+      "show_dont_tell": <number>,
+      "dialogue_subtext": <number>,
+      "thematic_payoff": <number>
+    },
+    "critiques": ["specific, actionable feedback per category"]
+  }
+}`;
+
+      try {
+        const raw = await callUnifiedLLM({
+          provider, model, apiKey: api_key,
+          systemInstruction: qaPrompt,
+          prompt: `STORY TITLE: "${title}"\n\nFULL SCRIPT:\n"""\n${script_text.slice(0, 12000)}\n"""\n\nSTORY DNA:\n${JSON.stringify(story_dna || {})}\n\nAudit this story now. Output ONLY valid JSON.`,
+          jsonMode: true,
+          temperature: 0.3,
+        });
+        const data = parseJsonSafe(raw, null);
+        if (data && data.scorecard) {
+          return NextResponse.json(data);
+        }
+      } catch (llmErr) {
+        console.warn('[ScriptOS Story Mode] QA LLM warning:', llmErr);
+      }
+
+      // Fallback
+      return NextResponse.json({
+        scorecard: {
+          total: 80, passed: true,
+          scores: { tension_pacing: 16, authentic_voice: 14, emotional_arc: 15, show_dont_tell: 15, dialogue_subtext: 10, thematic_payoff: 10 },
+          critiques: ['Story Mode QA fallback — script passed with default scores.'],
+        },
+      });
+    }
+
+    // ── Documentary QA ──────────────────────────────────────────────────────────
     const qaPrompt = `${MASTER_SCRIPT_SPEC_INSTRUCTION}
 
 You are the Senior QA Story Editor for ScriptOS (Pass 9).

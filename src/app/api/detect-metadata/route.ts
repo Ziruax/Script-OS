@@ -9,17 +9,74 @@ export async function POST(req: NextRequest) {
       provider = 'google',
       model,
       api_key,
+      story_mode = false,
     } = await req.json();
 
     if (!title && !details) {
       return NextResponse.json({
         audience: 'Intermediate',
-        goal: 'Viral',
+        goal: story_mode ? 'Entertain' : 'Viral',
         tone: 'Cinematic',
-        rationale: 'Default settings applied.',
+        rationale: story_mode ? 'Default storytelling settings applied.' : 'Default settings applied.',
       });
     }
 
+    // ── Story Mode: detect storytelling parameters (narrative voice, story type, emotional tone) ──
+    if (story_mode) {
+      const systemPrompt = `You are the Story Parameters Detector for ScriptOS Story Mode.
+Analyze the user's story concept and details. Infer the optimal storytelling configuration:
+
+1. Audience Level: "Beginner" | "Intermediate" | "Expert"
+2. Primary Goal: for storytelling, choose "Entertain" (dramatic storytelling) or "Persuade" (belief shift through narrative)
+3. Narrative Tone: choose the emotional register that fits the story
+   - "Cinematic" (suspenseful, visual, evocative)
+   - "Calm" (contemplative, intimate, measured)
+   - "Energetic" (urgent, fast-paced, high stakes)
+   - "Dark" (forensic, tragic, weight-of-consequence)
+   - "Funny" (self-deprecating, witty, vulnerable)
+
+Return ONLY valid JSON:
+{
+  "audience": "Beginner" | "Intermediate" | "Expert",
+  "goal": "Entertain" | "Persuade",
+  "tone": "Cinematic" | "Calm" | "Energetic" | "Dark" | "Funny",
+  "rationale": "One sentence explaining why this combination serves the story's emotional arc."
+}`;
+
+      const userPrompt = `Story Concept: "${title || 'Untitled'}"
+Details:
+"""
+${details || 'No additional details provided.'}
+"""
+
+Analyze and output strictly valid JSON.`;
+
+      const raw = await callUnifiedLLM({
+        provider, model, apiKey: api_key,
+        systemInstruction: systemPrompt,
+        prompt: userPrompt,
+        jsonMode: true,
+        temperature: 0.3,
+      });
+      const parsed = parseJsonSafe(raw, null);
+      if (parsed && parsed.audience && parsed.goal && parsed.tone) {
+        return NextResponse.json({
+          audience: parsed.audience,
+          goal: parsed.goal,
+          tone: parsed.tone,
+          rationale: parsed.rationale || 'Auto-detected for storytelling mode.',
+        });
+      }
+      // Fallback
+      return NextResponse.json({
+        audience: 'Intermediate',
+        goal: 'Entertain',
+        tone: 'Cinematic',
+        rationale: 'Story Mode defaults: cinematic emotional storytelling for a general audience.',
+      });
+    }
+
+    // ── Documentary mode: detect informational parameters ──────────────────────
     const systemPrompt = `You are the Audience & Narrative Tone Detector for ScriptOS.
 Analyze the user's video topic/title and long detailed nuances/notes.
 Infer the optimal configuration across 3 dimensions:

@@ -15,12 +15,31 @@ export async function POST(req: NextRequest) {
       provider = 'google',
       model,
       api_key,
+      story_mode = false,
     } = await req.json();
 
     // 1. Fetch live multi-source empirical research via ZAI Web Search (Wikipedia + Web + Reddit)
     const pythonData = await executeZaiResearch(title, details);
 
-    const systemPrompt = `${MASTER_SCRIPT_SPEC_INSTRUCTION}
+    // ── Story Mode: emphasize character/emotion/sensory research over facts/stats ──
+    const systemPrompt = story_mode
+      ? `You are the Story Researcher for ScriptOS Story Mode.
+Your mandate: Build a research dossier optimized for STORYTELLING — focus on
+character, emotion, sensory detail, and human stakes (NOT just facts/stats).
+
+STORYTELLING VALUES:
+- HUMAN STORIES: prioritize real lived experiences, Reddit confessions, personal
+  struggles over dry statistics.
+- SENSORY DETAIL: extract concrete images (what people saw, heard, felt) that can
+  ground the story's emotional turns.
+- CHARACTER-RELEVANT FACTS: surface facts that reveal character motivation, flaw,
+  or transformation — not just informational trivia.
+- CONTROVERSIAL ANGLES: find perspectives that challenge the protagonist's assumptions.
+
+SCHEMA: same 4-Tier Research Pack format (facts, stats, human_stories,
+competitor_gaps, controversial_angles, sources, competitor_hooks).
+Return ONLY valid JSON.` + (pythonData ? `\n\n=== RETRIEVED ZAI MULTI-SOURCE RESEARCH ===\n[WIKIPEDIA]:\n${JSON.stringify(pythonData.wikipedia_articles.map((w) => ({ title: w.title, url: w.url, summary: w.snippet })), null, 2)}\n\n[REDDIT]:\n${JSON.stringify(pythonData.reddit_threads.map((r) => ({ title: r.title, subreddit: r.host_name, url: r.url, quote: r.snippet })), null, 2)}\n\n[WEB]:\n${JSON.stringify(pythonData.web_research.map((b) => ({ title: b.title, url: b.url, snippet: b.snippet })), null, 2)}\n===============================================` : 'ZAI web search returned no live results — synthesize from model knowledge.')
+      : `${MASTER_SCRIPT_SPEC_INSTRUCTION}
 
 You are the Senior Investigative Researcher for ScriptOS (Pass 2).
 Your mandate: Build a production-grade, 4-Tier Research Pack for YouTube scriptwriting.

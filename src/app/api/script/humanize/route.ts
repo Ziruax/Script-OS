@@ -13,6 +13,7 @@ export async function POST(req: NextRequest) {
       provider = 'google',
       model,
       api_key,
+      story_mode = false,
     } = await req.json();
 
     // Canonical assembly of all chapters to ensure 100% of generated script is preserved
@@ -25,6 +26,94 @@ export async function POST(req: NextRequest) {
 
     const rawJoinedWords = canonicalAssembled.split(/\s+/).filter(Boolean).length;
 
+    // ── Story Mode humanizer: sensory enhancement, subtext check, emotional beat audit ──
+    if (story_mode) {
+      const systemPrompt = `You are the Story Humanizer & Final Packager for ScriptOS Story Mode.
+Your tasks:
+1. Generate 5 distinct HOOK VARIATIONS for the story opening — each a different emotional entry (in media res, mystery, promise, stakes, character). Each hook should be a sensory, evocative opening line, NOT a curiosity-gap information hook.
+2. Generate 3 TITLE VARIATIONS — evocative, emotional, not SEO-optimized.
+3. Audit the script for STORYTELLING quality (NOT documentary retention):
+   - TENSION_PACING: does dramatic tension rise and fall correctly?
+   - AUTHENTIC_VOICE: does the protagonist sound like a real person (not AI)?
+   - EMOTIONAL_ARC: does the feeling change across scenes?
+   - SHOW_DONT_TELL: is it dramatized (sensory, in-scene) vs summarized?
+   - DIALOGUE_SUBTEXT: is there subtext in the dialogue?
+   - THEMATIC_PAYOFF: does the ending earn the theme?
+4. Enhance sensory grounding: add or strengthen one concrete sensory image per major emotional turn.
+5. Check dialogue for "on the nose" lines and suggest subtext replacements.
+
+Score each dimension 8.0-10.0.
+
+Return ONLY valid JSON:
+{
+  "final_script": "the full enhanced script with all scenes",
+  "hooks": [{"type": "In media res", "hook_text": "...", "why_it_works": "..."}],
+  "title_variations": [{"title": "...", "type": "evocative", "why_it_works": "..."}],
+  "scorecard": {
+    "hook": <0-10>,
+    "stakes": <0-10>,
+    "novelty": <0-10>,
+    "loops": <0-10>,
+    "human_voice": <0-10>,
+    "payoff": <0-10>,
+    "total": <sum>,
+    "max_possible": 60,
+    "retention_grade": "10/10 Story Grade" | "Production Grade" | "Needs Revision",
+    "burstiness": { "sentence_count": N, "avg_words": N, "std_dev": N, "burstiness_score": N, "is_human": true },
+    "ai_flags_count": 0
+  },
+  "sources": [],
+  "word_metrics": { "total_words": N, "target_words": N, "completion_pct": N }
+}`;
+
+      const userPrompt = `STORY TITLE: "${title}"
+ASSEMBLED SCRIPT (${rawJoinedWords} words):
+"""
+${canonicalAssembled.slice(0, 12000)}
+"""
+
+Humanize, audit, and package this story script now. Output ONLY valid JSON.`;
+
+      try {
+        const raw = await callUnifiedLLM({
+          provider, model, apiKey: api_key,
+          systemInstruction: systemPrompt,
+          prompt: userPrompt,
+          jsonMode: true,
+          temperature: 0.5,
+        });
+        const parsed = parseJsonSafe(raw, null);
+        if (parsed && parsed.final_script) {
+          const scan = scanScriptAntiAi(parsed.final_script);
+          if (parsed.scorecard) {
+            parsed.scorecard.burstiness = scan.burstiness;
+            parsed.scorecard.ai_flags_count = scan.totalFlags;
+          }
+          return NextResponse.json(parsed);
+        }
+      } catch (llmErr) {
+        console.warn('[ScriptOS Story Mode] Humanize LLM warning:', llmErr);
+      }
+
+      // Fallback: return the assembled script as-is
+      const scan = scanScriptAntiAi(canonicalAssembled);
+      return NextResponse.json({
+        final_script: canonicalAssembled,
+        hooks: [],
+        title_variations: [],
+        scorecard: {
+          hook: 8, stakes: 8, novelty: 8, loops: 8, human_voice: 8, payoff: 8,
+          total: 48, max_possible: 60,
+          retention_grade: 'Draft (story humanize skipped)',
+          burstiness: scan.burstiness,
+          ai_flags_count: scan.totalFlags,
+        },
+        sources: research_pack?.sources || [],
+        word_metrics: { total_words: rawJoinedWords, target_words: Math.round((Number(length_min) || 10) * 150), completion_pct: Math.round((rawJoinedWords / Math.max(1, Number(length_min) * 150)) * 100) },
+      });
+    }
+
+    // ── Documentary humanizer ──────────────────────────────────────────────────
     const systemPrompt = `You are Final Packaging Producer & Master Humanizer for ScriptOS.
 Your tasks:
 1. Generate 5 distinct, high-CTR Hook Variations for YouTube A/B testing:
