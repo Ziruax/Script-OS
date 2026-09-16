@@ -687,3 +687,36 @@ VERIFICATION:
 - agent-browser QA: zero console errors across all 5 tabs.
 - Git push: verified — remote HEAD matches local HEAD, 75 clean source files, token not persisted.
 - Code is now live at https://github.com/Ziruax/Script-OS (main branch).
+
+---
+Task ID: 16 (fix console errors + outline sync + .env.example + push)
+Agent: main (Z.ai Code)
+Task: User reported console errors (hydration mismatch + JSON SyntaxError) + outline not syncing with Story Mode data + add .env.example with provider keys. Fix all, then push to GitHub.
+
+Work Log:
+- QA via agent-browser: found 3 issues — (1) hydration mismatch from theme init script in <head> colliding with browser extension content scripts, (2) JSON SyntaxError "Unexpected token '<'" when an API route returns HTML instead of JSON, (3) outline route not branching on story_mode (always used documentary format, ignoring Story Mode DNA).
+
+FIX 1 — Hydration mismatch (theme init script in <head>):
+- Root cause: the `<script dangerouslySetInnerHTML={{__html: themeInitScript}} />` in `<head>` is tracked by React's hydration. Browser extensions inject their own content scripts into `<head>`, replacing/colliding with the theme script → hydration mismatch: "Client __html: theme script vs Server __html: '' + src=chrome-extension://...".
+- Fix: moved the theme init script from a raw `<script>` in `<head>` to `next/script` with `strategy="beforeInteractive"` inside `<body>`. `next/script` manages the tag outside of React's hydration tree, so browser extension injections don't cause mismatches. Removed the `<head>` element entirely (Next.js handles it).
+
+FIX 2 — JSON SyntaxError (API returning HTML):
+- Root cause: when a fetch to an API route returns HTML (e.g., Next.js dev-mode compilation page, a 404 HTML error page, or a gateway redirect), calling `.json()` throws "Unexpected token '<', '<html>\n<h'... is not valid JSON" — a cryptic SyntaxError that crashes the action.
+- Fix: added a `safeJson(res: Response)` helper in the store that checks the `content-type` header before parsing. If the response is not JSON, it throws a clear error: "Server returned text/html (HTTP 404): <first 150 chars>" instead of the cryptic SyntaxError. All 10 `.json()` call sites in the store now use `safeJson()` (auto-replaced via sed).
+
+FIX 3 — Outline not syncing with Story Mode:
+- Root cause: `/api/outline/generate` received `story_mode` but didn't branch on it — it always used the documentary chapter format (central_story_question, retention checkpoints, 3-layer retention). When Story Mode was on, the outline ignored the Story Mode DNA (protagonist, wound, theme, stakes) and generated documentary chapters → "no synchronisation".
+- Fix: added a `story_mode` branch to the outline route that uses `STORY_OUTLINE_SYSTEM_PROMPT` + generates a 3-act beat sheet (scenes with beat_name, scene_goal, conflict, turn, emotional_shift, sensory_anchor, dialogue_seed). References the Story Mode DNA (protagonist, wound, theme, stakes, tension curve, sensory anchors, POV). Pads/trims to the exact target count. Returns `{ chapters: beats, __story_mode: true }` so the frontend knows it's a story outline.
+
+FIX 4 — .env.example with all provider API key placeholders:
+- Rewrote `.env.example` with all 9 providers: ZAI_API_KEY (blank — zero-config), GEMINI_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, DEEPSEEK_API_KEY, XAI_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, NVIDIA_NIM_KEY. Each has a comment linking to where to get the key. Notes that keys can also be entered in the Settings UI (localStorage) and that Z.AI needs no key. DATABASE_URL kept at the bottom.
+
+VERIFICATION:
+- `bun run lint` → clean (0 errors, 0 warnings).
+- Dev server: Next.js 16.3.5, ready. Dev log completely clean (no warnings, no errors).
+- agent-browser QA: zero console errors across all 5 tabs (Wizard, Research, Outline, Script Studio, Settings). Zero page errors. Zero hydration mismatches.
+- Git push: committed (82ce5e2) + pushed to https://github.com/Ziruax/Script-OS main. Remote HEAD matches local HEAD. Token not persisted in .git/config.
+
+Stage Summary:
+- All 3 console errors fixed: (1) hydration mismatch eliminated via next/script, (2) JSON SyntaxError prevented via safeJson() helper, (3) outline now syncs with Story Mode via a dedicated story-mode branch. Plus .env.example with all 9 provider key placeholders. Code pushed to GitHub.
+- All changes lint-clean and verified end-to-end via agent-browser (zero console errors across all tabs).
