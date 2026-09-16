@@ -71,9 +71,16 @@ export default function WizardView() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const handleReset = () => {
+    // Clear ALL workspace data + cache first (synchronous localStorage wipe),
+    // then force a HARD page reload so the user starts from absolute zero with
+    // no in-memory remnants. The reload re-mounts the app and loadFromStorage()
+    // finds nothing → fully blank state.
     resetSession();
     setShowResetConfirm(false);
-    toast('Session reset', 'success', 'All workspace data + cache cleared');
+    if (typeof window !== 'undefined') {
+      // Hard reload — bypasses cache so nothing stale survives.
+      setTimeout(() => { window.location.reload(); }, 50);
+    }
   };
 
   const estTime = Math.round(2 + 21 + 27 + 5 + 20 + (estChapters * 9) + 5 + 3);

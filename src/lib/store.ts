@@ -253,8 +253,9 @@ export const useScriptOSStore = create<ScriptOSState>((set, get) => ({
   showHelpModal: false,
   showPlaybookModal: false,
 
-  title: 'Why 99% of People Fail to Stay Consistent',
-  details: '- Break down the dopamine depletion cycle in the first 72 hours\n- Contrast willpower-based productivity vs friction-free architecture\n- Reveal the hidden cost of traditional 21-day habit advice\n- End with the 60-second micro-loop protocol',
+  // Blank defaults — the wizard opens empty. No demo/preset content.
+  title: '',
+  details: '',
   lengthMin: 8,
   contentType: 'Documentary',
   narrativeMode: 'Investigation',

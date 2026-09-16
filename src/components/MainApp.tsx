@@ -27,6 +27,7 @@ import {
   FolderOpen,
   PanelLeftClose,
   PanelLeft,
+  RotateCcw,
 } from 'lucide-react';
 
 interface MainAppProps {
@@ -52,6 +53,7 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
     title,
     isGenerating,
     startFullGeneration,
+    resetSession,
   } = useScriptOSStore();
   const { toast } = useToast();
 
@@ -64,6 +66,16 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
     const next = !sidebarCollapsed;
     setSidebarCollapsed(next);
     try { localStorage.setItem('scriptos_sidebar_collapsed', String(next)); } catch {}
+  };
+
+  // Start Fresh confirm (sidebar-accessible session reset)
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const handleResetSession = () => {
+    resetSession();
+    setShowResetConfirm(false);
+    if (typeof window !== 'undefined') {
+      setTimeout(() => { window.location.reload(); }, 50);
+    }
   };
 
   // On mount: load state + apply theme. We NEVER auto-open the onboarding modal —
@@ -134,6 +146,44 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
       <HelpModal />
       <PlaybookModal />
       <ProjectLibrary />
+
+      {/* Start Fresh confirm dialog (accessible from sidebar, any tab) */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden">
+            <div className="p-5">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 shrink-0">
+                  <RotateCcw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100">Start Fresh?</h3>
+                  <p className="text-xs text-neutral-500 mt-1 leading-relaxed">
+                    This clears <strong>everything</strong>: the current workspace (title, details, research, outline, script, QA), the saved project library, and all cached state — then reloads the page. There is no undo.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="px-5 py-3 bg-neutral-50 dark:bg-neutral-950/40 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                className="px-3 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-300 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-700 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleResetSession}
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset &amp; Reload
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sidebar Navigation */}
       <aside
@@ -207,6 +257,14 @@ export default function MainApp({ initialTab, initialStep }: MainAppProps) {
           >
             <BookOpen className="w-[18px] h-[18px] shrink-0 text-blue-500" />
             {!sidebarCollapsed && <span>Playbook</span>}
+          </button>
+          <button
+            onClick={() => setShowResetConfirm(true)}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+            title={sidebarCollapsed ? 'Start Fresh' : undefined}
+          >
+            <RotateCcw className="w-[18px] h-[18px] shrink-0" />
+            {!sidebarCollapsed && <span>Start Fresh</span>}
           </button>
           <button
             onClick={toggleSidebar}

@@ -623,3 +623,37 @@ Unresolved issues / risks / next-phase priorities:
 - The `src/lib/templates.ts` file still exists (used by the disabled onboarding HelpModal step). Could delete it if the onboarding templates step is also removed, but it's harmless.
 - Could add a "Reset" option in the sidebar footer too (currently only in the Wizard header) for always-accessible reset.
 - Could add a keyboard shortcut for Start Fresh (e.g. Shift+Cmd+R).
+
+---
+Task ID: 14 (user-reported: Start Fresh not working)
+Agent: main (Z.ai Code)
+Task: User reported: "start fresh is not working".
+
+Work Log:
+- Investigated: the resetSession action DID clear localStorage + reset store state correctly (verified via automated test — title went from "OLD TITLE" → "empty", localStorage cleared). But the user still saw content after reset. Root cause found: the store's HARDCODED DEFAULT `title` was `'Why 99% of People Fail to Stay Consistent'` (demo content from the original repo). After resetSession cleared localStorage + reset the store to "defaults", then on hard reload, `loadFromStorage()` found no saved state → the store initialized with its DEFAULT state, which included the demo title + demo details. So the user saw "Why 99% of People Fail to Stay Consistent" instead of a blank field. The reset APPEARED to not work.
+
+FIX 1 — Blank store defaults (the root cause):
+- Changed the store's initial `title` from `'Why 99% of People Fail to Stay Consistent'` → `''` (empty).
+- Changed the initial `details` from the 4-line demo content → `''` (empty).
+- Now when localStorage is cleared + the page reloads, `loadFromStorage` finds nothing → the store initializes with BLANK defaults → the wizard opens truly empty.
+- The input PLACEHOLDERS (ghost text like "e.g. Why 99%...") remain — those are UX hints shown only when the field is empty, not actual content.
+
+FIX 2 — Hard page reload after reset (bulletproof):
+- The `handleReset` in both WizardView and MainApp now calls `window.location.reload()` 50ms after `resetSession()`. This forces a full page re-mount, so no in-memory remnants survive. The reload re-mounts the app, `loadFromStorage()` runs, finds cleared localStorage → blank state.
+- The "Reset Everything" button in the Wizard confirm dialog is now labeled "Reset & Reload" in the sidebar confirm (clarifies that the page will reload).
+
+FIX 3 — Start Fresh button added to the sidebar footer:
+- Added a rose-themed "Start Fresh" button (RotateCcw icon) to the sidebar footer (between Playbook and Collapse), so it's accessible from ANY tab (Wizard, Research, Outline, Script Studio, Settings) — not just the Wizard header.
+- The sidebar button opens its own global confirm dialog (z-[70], above other modals) with "Start Fresh? This clears everything... then reloads the page. There is no undo." + Cancel / Reset & Reload buttons.
+- On mobile (where the sidebar is hidden), the Wizard header's Start Fresh button remains accessible.
+- Added the `RotateCcw` icon import + `resetSession` destructure + `showResetConfirm`/`handleResetSession` to MainApp.
+
+VERIFICATION:
+- `bun run lint` → clean (0 errors, 0 warnings).
+- Dev server: Next.js 16.3.5, ready, zero errors.
+- agent-browser QA (full flow): injected "PERSISTENT OLD" workspace state → reloaded → title showed "PERSISTENT OLD" → clicked sidebar Start Fresh → confirm dialog appeared → clicked "Reset & Reload" → page reloaded → title is now **EMPTY** → localStorage workspace key CLEARED → no console errors. The reset now WORKS: truly blank slate, no demo content, no cache.
+- Captured 1 screenshot: scriptos-v13-start-fresh-fixed.png.
+
+Stage Summary:
+- Fixed the Start Fresh bug: the store's default title/details were demo content from the original repo, so after clearing localStorage + reloading, the wizard showed the demo content instead of a blank field. Changed defaults to blank + added a hard page reload after reset for bulletproof clearing. Also added a Start Fresh button to the sidebar footer so it's accessible from any tab.
+- All changes lint-clean and verified end-to-end via agent-browser.
