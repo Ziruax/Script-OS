@@ -1,17 +1,35 @@
-fastapi>=0.110.0
-uvicorn>=0.28.0
-python-dotenv>=1.0.0
+# ─────────────────────────────────────────────────────────────────
+# ScriptOS Python Dependencies (OPTIONAL)
+# ─────────────────────────────────────────────────────────────────
+# These are ONLY needed if you want to run the standalone Python
+# research engine (scripts/research_engine.py) or the FastAPI
+# desktop backend (backend/main.py). The Next.js web app works
+# WITHOUT any of these — it uses the Z.AI SDK for web search +
+# LLM calls.
+#
+# If setup.bat / setup.sh fails to install some of these, that's
+# fine — the app still works. They're here for the full local mode.
+# ─────────────────────────────────────────────────────────────────
+
+# Web search + research (used by scripts/research_engine.py)
 duckduckgo-search>=5.0.0
 wikipedia>=1.4.0
-youtube-transcript-api>=0.6.2
 trafilatura>=1.8.0
+
+# NLP / search (used by backend/tools/)
 scikit-learn>=1.4.0
 fastembed>=0.2.0
 onnxruntime>=1.17.0
-google-generativeai>=0.4.1
-openai>=1.14.0
-anthropic>=0.19.0
+
+# FastAPI desktop backend (optional standalone mode)
+fastapi>=0.110.0
+uvicorn>=0.28.0
+python-dotenv>=1.0.0
+pydantic>=2.6.0
+
+# Security (Fernet key encryption)
 cryptography>=42.0.0
+
+# System info
 psutil>=5.9.0
 requests>=2.31.0
-pydantic>=2.6.0
